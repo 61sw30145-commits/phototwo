@@ -231,7 +231,8 @@
       capturedImages.forEach((imgSrc, i) => {
         const img = new Image();
         img.onload = () => {
-          ctx.drawImage(img, 100, 100 + (i * 720), 600, 600);
+          // ปรับขนาดรูปเป็น 540x540 px (จัดกึ่งกลาง X ที่ 130px และระยะแนวตั้ง Y)
+          ctx.drawImage(img, 130, 130 + (i * 720), 540, 540);
           loadedCount++;
           
           if (loadedCount === 3 && selectedFrame) {
