@@ -289,15 +289,21 @@
       });
     }
 
-    // ฟังก์ชันอัปโหลดภาพ Final Canvas ไปยัง Imgur และสร้าง QR Code
+    // ฟังก์ชันอัปโหลดภาพแบบเร่งความเร็ว (ย่อขนาด + แปลงเป็น JPEG คุณภาพ 70%)
     async function uploadAndShowQR() {
       const canvas = document.getElementById('final-canvas');
       const statusText = document.getElementById('qr-status');
       document.getElementById('qrcode').innerHTML = "";
       statusText.innerText = "กำลังสร้าง QR Code...";
 
-      // ดึง Base64 Data จาก Canvas เพื่อแปลงเป็น Blob
-      canvas.toBlob(async (blob) => {
+      // ย่อขนาด Canvas ลง 50% เพื่อลดความจุไฟล์และเพิ่มความเร็วในการส่งข้อมูล
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width * 0.5;
+      tempCanvas.height = canvas.height * 0.5;
+      const ctx = tempCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+      tempCanvas.toBlob(async (blob) => {
         const formData = new FormData();
         formData.append('image', blob);
 
@@ -324,7 +330,7 @@
         } catch (err) {
           statusText.innerText = "ข้อผิดพลาดอินเทอร์เน็ต";
         }
-      }, 'image/png');
+      }, 'image/jpeg', 0.7);
     }
   </script>
 </body>
