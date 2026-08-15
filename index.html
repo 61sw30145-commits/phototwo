@@ -17,7 +17,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
 
-  <!-- ปุ่มย้อนกลับ (Back Button) -->
+  <!-- ปุ่มย้อนกลับ -->
   <div id="back-button-container" class="absolute top-6 left-6 hidden">
     <button onclick="goBack()" class="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-full shadow-sm hover:border-stone-800 transition text-sm font-medium text-stone-700">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -59,7 +59,6 @@
     <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
       <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
 
-      <!-- เส้น Guide Frame สัดส่วน 700:550 -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
         <div class="w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
           <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
@@ -95,7 +94,7 @@
     let currentStep = 1;
     let stepHistory = [1];
     let selectedFrame = null;
-    let targetShotCount = 3; // ค่าเริ่มต้นเป็น 3 ช็อต
+    let targetShotCount = 3;
     let capturedImages = [];
     let frames = [];
     let captureTimer = null;
@@ -108,11 +107,14 @@
         const config = await res.json();
         frames = config.frames || [];
       } catch (e) {
+        // เพิ่มฟิลด์ shots เพื่อระบุประเภทกรอบรูป (1 ช็อต หรือ 3 ช็อต)
         frames = [
-          { id: 1, name: "บัวหลวงใหญ่", file: "frame1.png" },
-          { id: 2, name: "กรอบสีดำ", file: "frame2.png" },
-          { id: 3, name: "กรอบสีฟ้า", file: "frame3.png" },
-          { id: 4, name: "ใบเสร็จ", file: "frame4.png" } 
+          { id: 1, name: "กรอบ 1 รูป (สีขาว)", file: "frame_1shot_1.png", shots: 1 },
+          { id: 2, name: "กรอบ 1 รูป (สีดำ)", file: "frame_1shot_2.png", shots: 1 },
+          { id: 3, name: "บัวหลวงใหญ่ (3 รูป)", file: "frame1.png", shots: 3 },
+          { id: 4, name: "กรอบสีดำ (3 รูป)", file: "frame2.png", shots: 3 },
+          { id: 5, name: "กรอบสีฟ้า (3 รูป)", file: "frame3.png", shots: 3 },
+          { id: 6, name: "ใบเสร็จ (3 รูป)", file: "frame4.png", shots: 3 } 
         ];
       }
     }
@@ -127,7 +129,6 @@
     function goToStep(step, isBack = false) {
       if (isCapturing) stopCapture();
 
-      // ปิดกล้องเมื่อย้ายออกจาก Step 3
       if (currentStep === 3 && step !== 3) {
         stopCamera();
       }
@@ -135,13 +136,11 @@
       document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
       document.getElementById(`step-${step}`).classList.remove('hidden');
 
-      // บันทึก History สำหรับปุ่มย้อนกลับ
       if (!isBack && currentStep !== step) {
         stepHistory.push(step);
       }
       currentStep = step;
 
-      // ซ่อน/แสดง ปุ่มย้อนกลับ
       const backBtn = document.getElementById('back-button-container');
       if (step === 1) {
         backBtn.classList.add('hidden');
@@ -183,7 +182,16 @@
 
     function renderFrames() {
       const container = document.getElementById('frame-list');
-      container.innerHTML = frames.map(f => `
+      
+      // กรองเฉพาะกรอบที่มีจำนวน shots ตรงกับที่เลือกไว้
+      const filteredFrames = frames.filter(f => f.shots === targetShotCount);
+
+      if (filteredFrames.length === 0) {
+        container.innerHTML = `<p class="col-span-2 text-stone-500 py-8">ไม่พบกรอบรูปสำหรับ ${targetShotCount} ช็อต</p>`;
+        return;
+      }
+
+      container.innerHTML = filteredFrames.map(f => `
         <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
           <div class="w-full aspect-[8/23] bg-stone-100 rounded-lg overflow-hidden flex items-center justify-center p-1 border border-stone-100 relative">
             <img src="${f.file}" alt="${f.name}" class="w-full h-full object-contain group-hover:scale-105 transition duration-200 z-10" onerror="this.src='https://via.placeholder.com/150x431?text=No+Preview'">
@@ -351,12 +359,10 @@
         const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
         
         if (targetShotCount === 1) {
-          // ถ้าถ่าย 1 รูป วาดรูปไว้ตรงกลาง Canvas
           if (shotImages[0]) {
             ctx.drawImage(shotImages[0], 50, 750, 700, 550);
           }
         } else {
-          // ถ้าถ่าย 3 รูป วาดไล่ลำดับ 3 ช่อง
           shotImages.forEach((img, i) => {
             if (img) ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
           });
