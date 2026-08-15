@@ -157,19 +157,30 @@
       const video = document.getElementById('webcam');
       const canvas = document.createElement('canvas');
       
-      const minSize = Math.min(video.videoWidth, video.videoHeight);
-      canvas.width = minSize;
-      canvas.height = minSize;
+      // กำหนดอัตราส่วนการตัดรูปถ่ายเป็นสี่เหลี่ยมผืนผ้า (3:2) ให้ตรงกับขนาดที่แสดงบน final canvas (660x440 px)
+      const targetWidth = video.videoWidth;
+      const targetHeight = video.videoWidth * (440 / 660);
+
+      let cropWidth = video.videoWidth;
+      let cropHeight = targetHeight;
+
+      if (cropHeight > video.videoHeight) {
+        cropHeight = video.videoHeight;
+        cropWidth = video.videoHeight * (660 / 440);
+      }
+
+      canvas.width = 660;
+      canvas.height = 440;
       
-      const startX = (video.videoWidth - minSize) / 2;
-      const startY = (video.videoHeight - minSize) / 2;
+      const startX = (video.videoWidth - cropWidth) / 2;
+      const startY = (video.videoHeight - cropHeight) / 2;
       
       const ctx = canvas.getContext('2d');
       
-      ctx.translate(minSize, 0);
+      ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
       
-      ctx.drawImage(video, startX, startY, minSize, minSize, 0, 0, minSize, minSize);
+      ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
       capturedImages[index] = canvas.toDataURL('image/png');
     }
 
@@ -208,7 +219,7 @@
       const previewContainer = document.getElementById('shots-preview');
       previewContainer.innerHTML = capturedImages.map((img, i) => `
         <div class="relative cursor-pointer border-2 border-stone-300 hover:border-stone-800 rounded overflow-hidden group" onclick="retakeSingleShot(${i})">
-          <img src="${img}" class="w-20 h-20 object-cover">
+          <img src="${img}" class="w-20 h-14 object-cover">
           <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-90 transition">
             <span class="text-white text-[11px] font-medium bg-black/60 px-1.5 py-0.5 rounded">ถ่ายใหม่</span>
           </div>
@@ -222,7 +233,7 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
-      // กำหนดขนาด Canvas ให้สอดคล้องกับอัตราส่วน 80x180 mm (สัดส่วน 4:9)
+      // ขนาด Canvas รวม (800x1800 px / สัดส่วน 80x180 mm)
       canvas.width = 800;
       canvas.height = 1800;
 
@@ -233,8 +244,10 @@
       capturedImages.forEach((imgSrc, i) => {
         const img = new Image();
         img.onload = () => {
-          // ขนาดรูปถ่าย 500x500 px (จัดกึ่งกลาง X ที่ 150px, เว้นระยะ Y ช่องละ 520px)
-          ctx.drawImage(img, 150, 120 + (i * 520), 500, 500);
+          // ขนาดรูปสี่เหลี่ยมผืนผ้า 660x440 px
+          // X: ขอบซ้าย 70 px (ขอบขวาเหลือ 70 px พอดี)
+          // Y: เริ่มที่ 88 px, ระยะระหว่างรูป 26 px (รูปสุดท้ายจะห่างขอบล่าง 100 px พอดี)
+          ctx.drawImage(img, 70, 88 + (i * 466), 660, 440);
           loadedCount++;
           
           if (loadedCount === 3 && selectedFrame) {
