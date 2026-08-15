@@ -369,7 +369,7 @@
       const ctx = canvas.getContext('2d');
 
       if (targetShotCount === 1) {
-        // ขนาด 80mm x 130mm (1200px x 1950px)
+        // ขนาดกรอบ 80mm x 130mm (1200px x 1950px)
         canvas.width = 1200;
         canvas.height = 1950;
 
@@ -383,9 +383,9 @@
             const photoW = 1050; // กว้าง 70mm
             const photoH = 1500; // ยาว 100mm
 
-            // คำนวณให้รูปอยู่กึ่งกลางแนวนอนเป๊ะๆ: (1200 - 1050) / 2 = 75px
-            const photoX = (canvas.width - photoW) / 2;
-            const photoY = 225; // ห่างจากขอบบน 15mm (225px)
+            // คำนวณกึ่งกลางแนวนอน และ แนวตั้ง ให้ตรงเป๊ะ
+            const photoX = (canvas.width - photoW) / 2;  // 75px
+            const photoY = (canvas.height - photoH) / 2; // 225px (จัดกึ่งกลางแนวตั้งพอดี)
 
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
