@@ -10,11 +10,22 @@
       body * { visibility: hidden; }
       #print-area, #print-area * { visibility: visible; }
       #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+      #back-button-container { display: none !important; }
     }
     #webcam { transform: scaleX(-1); }
   </style>
 </head>
-<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
+
+  <!-- ปุ่มย้อนกลับ -->
+  <div id="back-button-container" class="absolute top-6 left-6 hidden">
+    <button onclick="goBack()" class="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-full shadow-sm hover:border-stone-800 transition text-sm font-medium text-stone-700">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      ย้อนกลับ
+    </button>
+  </div>
 
   <!-- Step 1: หน้าแรก -->
   <div id="step-1" class="text-center space-y-6">
@@ -33,7 +44,6 @@
     <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
       <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
 
-      <!-- เส้น Guide Frame สัดส่วน 700:550 -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
         <div class="w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
           <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
@@ -66,9 +76,13 @@
   </div>
 
   <script>
+    let currentStep = 1;
+    let stepHistory = [1];
     let selectedFrame = null;
     let capturedImages = [null, null, null];
     let frames = [];
+    let captureTimer = null;
+    let isCapturing = false;
 
     async function loadConfig() {
       try {
@@ -77,7 +91,7 @@
         frames = config.frames || [];
       } catch (e) {
         frames = [
-          { id: 1, name: "บัวหลวงใหญ่", file: "frame1.png"  },
+          { id: 1, name: "บัวหลวงใหญ่", file: "frame1.png" },
           { id: 2, name: "กรอบสีดำ", file: "frame2.png" },
           { id: 3, name: "กรอบสีฟ้า", file: "frame3.png" },
           { id: 4, name: "ใบเสร็จ", file: "frame4.png" } 
@@ -86,9 +100,23 @@
     }
     loadConfig();
 
-    function goToStep(step) {
+    function goToStep(step, isBack = false) {
+      if (isCapturing) stopCapture();
+
       document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
       document.getElementById(`step-${step}`).classList.remove('hidden');
+
+      if (!isBack && currentStep !== step) {
+        stepHistory.push(step);
+      }
+      currentStep = step;
+
+      const backBtn = document.getElementById('back-button-container');
+      if (step === 1) {
+        backBtn.classList.add('hidden');
+      } else {
+        backBtn.classList.remove('hidden');
+      }
 
       if (step === 2) renderFrames();
       if (step === 3) {
@@ -98,9 +126,21 @@
           showRetakeUI();
         }
       }
-      if (step === 4) {
-        renderFinalCanvas();
+      if (step === 4) renderFinalCanvas();
+    }
+
+    function goBack() {
+      if (stepHistory.length > 1) {
+        stepHistory.pop();
+        const prevStep = stepHistory[stepHistory.length - 1];
+        goToStep(prevStep, true);
       }
+    }
+
+    function stopCapture() {
+      isCapturing = false;
+      if (captureTimer) clearInterval(captureTimer);
+      document.getElementById('countdown').classList.add('hidden');
     }
 
     function renderFrames() {
@@ -132,6 +172,7 @@
         
         setTimeout(() => {
           capturedImages = [null, null, null];
+          isCapturing = true;
           captureNext(0);
         }, 1000);
       } catch (err) {
@@ -140,7 +181,7 @@
     }
 
     function captureNext(index) {
-      if (index >= 3) {
+      if (!isCapturing || index >= 3) {
         showRetakeUI();
         return;
       }
@@ -152,12 +193,12 @@
       cdEl.classList.remove('hidden');
       cdEl.innerText = count;
 
-      const timer = setInterval(() => {
+      captureTimer = setInterval(() => {
         count--;
         if (count > 0) {
           cdEl.innerText = count;
         } else {
-          clearInterval(timer);
+          clearInterval(captureTimer);
           cdEl.classList.add('hidden');
           
           takePhoto(index);
@@ -167,7 +208,7 @@
           previewImg.classList.remove('hidden');
 
           setTimeout(() => {
-            captureNext(index + 1);
+            if (isCapturing) captureNext(index + 1);
           }, 3000);
         }
       }, 1000);
@@ -199,6 +240,7 @@
     }
 
     function retakeSingleShot(index) {
+      isCapturing = true;
       document.getElementById('shot-preview-overlay').classList.add('hidden');
       document.getElementById('retake-controls').classList.add('hidden');
       document.getElementById('camera-guide').classList.remove('hidden');
@@ -208,12 +250,12 @@
       cdEl.classList.remove('hidden');
       cdEl.innerText = count;
 
-      const timer = setInterval(() => {
+      captureTimer = setInterval(() => {
         count--;
         if (count > 0) {
           cdEl.innerText = count;
         } else {
-          clearInterval(timer);
+          clearInterval(captureTimer);
           cdEl.classList.add('hidden');
           takePhoto(index);
           
@@ -230,6 +272,7 @@
     }
 
     function showRetakeUI() {
+      isCapturing = false;
       document.getElementById('shot-preview-overlay').classList.add('hidden');
       document.getElementById('camera-guide').classList.add('hidden');
 
