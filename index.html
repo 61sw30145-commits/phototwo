@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library สำหรับสร้าง GIF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
   <!-- Library สำหรับสร้าง QR Code -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
@@ -63,9 +61,9 @@
       <canvas id="final-canvas" class="max-w-full rounded shadow-md"></canvas>
     </div>
 
-    <!-- ส่วน QR Code แสดงไฟล์ GIF -->
+    <!-- ส่วน QR Code แสดงไฟล์รูปภาพ -->
     <div class="bg-white p-4 rounded-xl border border-stone-200 flex flex-col items-center space-y-2">
-      <p class="text-sm font-medium text-stone-700">สแกนเพื่อรับไฟล์ GIF ขยับได้</p>
+      <p class="text-sm font-medium text-stone-700">สแกนเพื่อรับไฟล์รูปภาพดิจิทัล</p>
       <div id="qrcode" class="p-2 bg-white rounded flex items-center justify-center min-h-[128px]"></div>
       <p id="qr-status" class="text-xs text-stone-400">กำลังเตรียมไฟล์...</p>
     </div>
@@ -111,7 +109,6 @@
       }
       if (step === 4) {
         renderFinalCanvas();
-        generateFastGIF();
       }
     }
 
@@ -135,7 +132,7 @@
     async function startCameraAndCapture() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
           audio: false 
         });
         document.getElementById('webcam').srcObject = stream;
@@ -275,79 +272,59 @@
           ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
           loadedCount++;
           
-          if (loadedCount === 3 && selectedFrame) {
-            const frameImg = new Image();
-            frameImg.onload = () => {
-              ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-            };
-            frameImg.src = selectedFrame;
-          }
-        };
-        img.src = imgSrc;
-      });
-    }
-
-    // ปรับปรุงฟังก์ชันสร้าง GIF ให้เร็วขึ้น (ย่อขนาด GIF เหลือ 350x275 + ลดคุณภาพ Render เพื่อความเร็วระดับมิลลิวินาที)
-    function generateFastGIF() {
-      const qrContainer = document.getElementById('qrcode');
-      const statusText = document.getElementById('qr-status');
-      qrContainer.innerHTML = "";
-      statusText.innerText = "กำลังประมวลผล QR Code...";
-
-      const gif = new GIF({
-        workers: 4,
-        quality: 20, // ปรับคุณภาพสมดุลระหว่างความเร็วและขนาดไฟล์
-        width: 350,  // ปรับย่อขนาด GIF ช่วยลดเวลาประมวลผลลง 4 เท่า
-        height: 275,
-        workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
-      });
-
-      let loadedCount = 0;
-      capturedImages.forEach(imgSrc => {
-        const img = new Image();
-        img.onload = () => {
-          gif.addFrame(img, { delay: 350 });
-          loadedCount++;
           if (loadedCount === 3) {
-            gif.render();
+            if (selectedFrame) {
+              const frameImg = new Image();
+              frameImg.onload = () => {
+                ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+                uploadAndShowQR();
+              };
+              frameImg.src = selectedFrame;
+            } else {
+              uploadAndShowQR();
+            }
           }
         };
         img.src = imgSrc;
       });
-
-      gif.on('finished', function(blob) {
-        uploadAndShowQR(blob);
-      });
     }
 
-    async function uploadAndShowQR(blob) {
+    // ฟังก์ชันอัปโหลดภาพ Final Canvas ไปยัง Imgur และสร้าง QR Code
+    async function uploadAndShowQR() {
+      const canvas = document.getElementById('final-canvas');
       const statusText = document.getElementById('qr-status');
-      const formData = new FormData();
-      formData.append('image', blob);
+      document.getElementById('qrcode').innerHTML = "";
+      statusText.innerText = "กำลังสร้าง QR Code...";
 
-      try {
-        const res = await fetch('https://api.imgur.com/3/image', {
-          method: 'POST',
-          headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
-          body: formData
-        });
-        const data = await res.json();
+      // ดึง Base64 Data จาก Canvas เพื่อแปลงเป็น Blob
+      canvas.toBlob(async (blob) => {
+        const formData = new FormData();
+        formData.append('image', blob);
 
-        if (data.success) {
-          const downloadUrl = data.data.link;
-          document.getElementById('qrcode').innerHTML = "";
-          new QRCode(document.getElementById('qrcode'), {
-            text: downloadUrl,
-            width: 128,
-            height: 128
+        try {
+          const res = await fetch('https://api.imgur.com/3/image', {
+            method: 'POST',
+            headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
+            body: formData
           });
-          statusText.innerText = "สแกนเพื่อรับไฟล์ GIF";
-        } else {
-          statusText.innerText = "เกิดข้อผิดพลาดในการรับไฟล์";
+          const data = await res.json();
+
+          if (data.success) {
+            const downloadUrl = data.data.link;
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById('qrcode'), {
+              text: downloadUrl,
+              width: 128,
+              height: 128
+            });
+            statusText.innerText = "สแกนเพื่อรับรูปภาพดิจิทัล";
+          } else {
+            statusText.innerText = "เกิดข้อผิดพลาดในการรับไฟล์";
+          }
+        } catch (err) {
+          statusText.innerText = "ข้อผิดพลาดอินเทอร์เน็ต";
         }
-      } catch (err) {
-        statusText.innerText = "ข้อผิดพลาดอินเทอร์เน็ต";
-      }
+      }, 'image/png');
     }
   </script>
 </body>
