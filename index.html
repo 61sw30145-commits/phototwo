@@ -33,7 +33,7 @@
     <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
       <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
 
-      <!-- เส้น Guide Frame อัปเดตสัดส่วนเป็น 700:550 -->
+      <!-- เส้น Guide Frame สัดส่วน 700:550 -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
         <div class="w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
           <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
@@ -169,14 +169,12 @@
       const video = document.getElementById('webcam');
       const canvas = document.createElement('canvas');
       
-      // ปรับขนาดรูปภาพเป็น 700x550
       canvas.width = 700;
       canvas.height = 550;
       
       const vWidth = video.videoWidth;
       const vHeight = video.videoHeight;
       
-      // คำนวณตัดภาพให้ตรงสัดส่วน 700:550
       const cropWidth = vWidth;
       const cropHeight = vWidth * (550 / 700);
       
@@ -244,9 +242,9 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
-      // ขนาด Canvas รวมปรับตามระยะใหม่ (800x2400 px)
+      // ขนาด Canvas อัปเดตเป็น 800x2100 px (80mm x 210mm)
       canvas.width = 800;
-      canvas.height = 2400;
+      canvas.height = 2100;
 
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -255,7 +253,7 @@
       capturedImages.forEach((imgSrc, i) => {
         const img = new Image();
         img.onload = () => {
-          // วาดรูปขนาด 700x550 px โดยเว้นระยะรูปละ 600 px (550px รูป + 50px ระยะห่าง)
+          // ระยะ Y: รูปแรกเริ่มที่ 150px, ถัดไปบวกเพิ่มรูปละ 600px (550px รูป + 50px ระยะห่าง)
           ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
           loadedCount++;
           
