@@ -30,7 +30,22 @@
   <!-- Step 1: หน้าแรก -->
   <div id="step-1" class="text-center space-y-6">
     <h1 class="text-4xl font-light tracking-wide">PHOTO BOOTH</h1>
-    <button onclick="goToStep(2)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
+    <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
+  </div>
+
+  <!-- Step 1.5: เลือกจำนวนช็อต -->
+  <div id="step-15" class="hidden text-center space-y-6 w-full max-w-md">
+    <h2 class="text-2xl font-light">เลือกจำนวนช็อต</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <button onclick="selectShotCount(1)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
+        <span class="text-3xl font-light group-hover:scale-110 transition">1</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 1 ช็อต</span>
+      </button>
+      <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
+        <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต</span>
+      </button>
+    </div>
   </div>
 
   <!-- Step 2: เลือกกรอบรูป -->
@@ -80,7 +95,8 @@
     let currentStep = 1;
     let stepHistory = [1];
     let selectedFrame = null;
-    let capturedImages = [null, null, null];
+    let targetShotCount = 3; // ค่าเริ่มต้นเป็น 3 ช็อต
+    let capturedImages = [];
     let frames = [];
     let captureTimer = null;
     let isCapturing = false;
@@ -101,6 +117,12 @@
       }
     }
     loadConfig();
+
+    function selectShotCount(count) {
+      targetShotCount = count;
+      capturedImages = new Array(count).fill(null);
+      goToStep(2);
+    }
 
     function goToStep(step, isBack = false) {
       if (isCapturing) stopCapture();
@@ -187,7 +209,7 @@
         document.getElementById('camera-guide').classList.remove('hidden');
         
         setTimeout(() => {
-          capturedImages = [null, null, null];
+          capturedImages = new Array(targetShotCount).fill(null);
           isCapturing = true;
           captureNext(0);
         }, 1000);
@@ -197,7 +219,7 @@
     }
 
     function captureNext(index) {
-      if (!isCapturing || index >= 3) {
+      if (!isCapturing || index >= targetShotCount) {
         showRetakeUI();
         return;
       }
@@ -327,9 +349,18 @@
 
       try {
         const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
-        shotImages.forEach((img, i) => {
-          if (img) ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
-        });
+        
+        if (targetShotCount === 1) {
+          // ถ้าถ่าย 1 รูป วาดรูปไว้ตรงกลาง Canvas
+          if (shotImages[0]) {
+            ctx.drawImage(shotImages[0], 50, 750, 700, 550);
+          }
+        } else {
+          // ถ้าถ่าย 3 รูป วาดไล่ลำดับ 3 ช่อง
+          shotImages.forEach((img, i) => {
+            if (img) ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
+          });
+        }
 
         if (selectedFrame) {
           const frameImg = await loadImage(selectedFrame);
