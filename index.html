@@ -221,8 +221,10 @@
     function renderFinalCanvas() {
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
+
+      // กำหนดขนาด Canvas ให้สอดคล้องกับอัตราส่วน 80x180 mm (สัดส่วน 4:9)
       canvas.width = 800;
-      canvas.height = 2400;
+      canvas.height = 1800;
 
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -231,8 +233,8 @@
       capturedImages.forEach((imgSrc, i) => {
         const img = new Image();
         img.onload = () => {
-          // ปรับขนาดรูปเป็น 540x540 px (จัดกึ่งกลาง X ที่ 130px และระยะแนวตั้ง Y)
-          ctx.drawImage(img, 130, 130 + (i * 720), 540, 540);
+          // ขนาดรูปถ่าย 500x500 px (จัดกึ่งกลาง X ที่ 150px, เว้นระยะ Y ช่องละ 520px)
+          ctx.drawImage(img, 150, 120 + (i * 520), 500, 500);
           loadedCount++;
           
           if (loadedCount === 3 && selectedFrame) {
