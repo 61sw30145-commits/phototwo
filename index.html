@@ -244,6 +244,216 @@
     }
   </script>
 </body>
+</html>    </div>
+    
+    <div id="retake-controls" class="hidden space-y-2">
+      <p class="text-sm text-stone-600">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้นได้ครับ</p>
+      <div id="shots-preview" class="flex justify-center gap-2"></div>
+      <button onclick="goToStep(5)" class="px-6 py-2 bg-stone-800 text-white rounded-full">ยืนยันรูปภาพ</button>
+    </div>
+
+    <button id="btn-capture" onclick="startCaptureSequence()" class="px-6 py-2 bg-stone-800 text-white rounded-full">เริ่มถ่าย (3 ช็อต)</button>
+  </div>
+
+  <!-- Step 5: พรีวิวและสั่งปริ้นท์ -->
+  <div id="step-5" class="hidden text-center space-y-6 w-full max-w-md">
+    <h2 class="text-2xl font-light">สั่งปริ้นท์รูปภาพ</h2>
+    <div id="print-area" class="flex justify-center">
+      <canvas id="final-canvas" class="max-w-full rounded shadow-md"></canvas>
+    </div>
+    <div class="flex items-center justify-center gap-4">
+      <label class="text-sm">จำนวนชุด:</label>
+      <input type="number" id="print-copies" value="1" min="1" max="10" class="w-16 p-2 border border-stone-300 rounded text-center">
+      <button onclick="triggerPrint()" class="px-6 py-2 bg-stone-800 text-white rounded-full">สั่งปริ้นท์</button>
+    </div>
+  </div>
+
+  <script>
+    let selectedFrame = null;
+    let capturedImages = [null, null, null];
+    let frames = [];
+
+    // ดึงข้อมูลกรอบรูปจาก config.json
+    async function loadConfig() {
+      try {
+        const res = await fetch('config.json');
+        const config = await res.json();
+        frames = config.frames || [];
+      } catch (e) {
+        frames = [
+          { id: 1, name: "กรอบสีฟ้า", file: "frame3.png" },
+          { id: 2, name: "กรอบสีดำ", file: "frame2.png" },
+          { id: 3, name: "กรอบชมพู", file: "frame1.png" }
+        ];
+      }
+    }
+    loadConfig();
+
+    function goToStep(step) {
+      document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`step-${step}`).classList.remove('hidden');
+
+      if (step === 2) renderFrames();
+      if (step === 3) startCamera();
+      if (step === 5) renderFinalCanvas();
+    }
+
+    function renderFrames() {
+      const container = document.getElementById('frame-list');
+      container.innerHTML = frames.map(f => `
+        <div onclick="selectFrame('${f.file}')" class="border p-4 rounded-lg cursor-pointer hover:border-stone-800 bg-white shadow-sm">
+          <p class="text-sm font-medium">${f.name}</p>
+        </div>
+      `).join('');
+    }
+
+    function selectFrame(file) {
+      selectedFrame = file;
+      goToStep(3);
+    }
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        document.getElementById('webcam').srcObject = stream;
+      } catch (err) {
+        alert("ไม่สามารถเข้าถึงกล้องได้ กรุณ่อนุญาตสิทธิ์การใช้กล้อง");
+      }
+    }
+
+    function startCaptureSequence() {
+      document.getElementById('btn-capture').classList.add('hidden');
+      document.getElementById('retake-controls').classList.add('hidden');
+      capturedImages = [null, null, null];
+      captureNext(0);
+    }
+
+    function captureNext(index) {
+      if (index >= 3) {
+        showRetakeUI();
+        return;
+      }
+
+      // ซ่อนรูปพรีวิวเดิมก่อนนับถอยหลัง
+      document.getElementById('shot-preview-overlay').classList.add('hidden');
+
+      let count = 3;
+      const cdEl = document.getElementById('countdown');
+      cdEl.classList.remove('hidden');
+      cdEl.innerText = count;
+
+      const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          cdEl.innerText = count;
+        } else {
+          clearInterval(timer);
+          cdEl.classList.add('hidden');
+          
+          // ถ่ายรูป
+          takePhoto(index);
+
+          // แสดงรูปที่เพิ่งถ่ายค้างไว้ 3 วินาที
+          const previewImg = document.getElementById('shot-preview-overlay');
+          previewImg.src = capturedImages[index];
+          previewImg.classList.remove('hidden');
+
+          // รอ 3 วินาทีแล้วไปถ่ายช็อตต่อไป
+          setTimeout(() => {
+            captureNext(index + 1);
+          }, 3000);
+        }
+      }, 1000);
+    }
+
+    function takePhoto(index) {
+      const video = document.getElementById('webcam');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+      capturedImages[index] = canvas.toDataURL('image/png');
+    }
+
+    function retakeSingleShot(index) {
+      document.getElementById('shot-preview-overlay').classList.add('hidden');
+      let count = 3;
+      const cdEl = document.getElementById('countdown');
+      cdEl.classList.remove('hidden');
+      cdEl.innerText = count;
+
+      const timer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          cdEl.innerText = count;
+        } else {
+          clearInterval(timer);
+          cdEl.classList.add('hidden');
+          takePhoto(index);
+          
+          // แสดงรูปที่ถ่ายใหม่ค้างไว้ 3 วินาที
+          const previewImg = document.getElementById('shot-preview-overlay');
+          previewImg.src = capturedImages[index];
+          previewImg.classList.remove('hidden');
+
+          setTimeout(() => {
+            document.getElementById('shot-preview-overlay').classList.add('hidden');
+            showRetakeUI();
+          }, 3000);
+        }
+      }, 1000);
+    }
+
+    function showRetakeUI() {
+      document.getElementById('shot-preview-overlay').classList.add('hidden');
+      const previewContainer = document.getElementById('shots-preview');
+      previewContainer.innerHTML = capturedImages.map((img, i) => `
+        <div class="relative cursor-pointer border-2 border-transparent hover:border-stone-800 rounded overflow-hidden" onclick="retakeSingleShot(${i})">
+          <img src="${img}" class="w-20 h-20 object-cover">
+          <span class="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] text-center py-0.5">ถ่ายใหม่</span>
+        </div>
+      `).join('');
+
+      document.getElementById('retake-controls').classList.remove('hidden');
+    }
+
+    function renderFinalCanvas() {
+      const canvas = document.getElementById('final-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 600;
+      canvas.height = 1800;
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let loadedCount = 0;
+      capturedImages.forEach((imgSrc, i) => {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 50, 50 + (i * 550), 500, 500);
+          loadedCount++;
+          
+          if (loadedCount === 3 && selectedFrame) {
+            const frameImg = new Image();
+            frameImg.onload = () => {
+              ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+            };
+            frameImg.src = selectedFrame;
+          }
+        };
+        img.src = imgSrc;
+      });
+    }
+
+    function triggerPrint() {
+      const copies = parseInt(document.getElementById('print-copies').value) || 1;
+      for (let i = 0; i < copies; i++) {
+        window.print();
+      }
+    }
+  </script>
+</body>
 </html>    <div id="retake-controls" class="hidden space-y-2">
       <p class="text-sm text-stone-600">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้นได้ครับ</p>
       <div id="shots-preview" class="flex justify-center gap-2"></div>
