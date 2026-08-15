@@ -17,7 +17,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
 
-  <!-- ปุ่มย้อนกลับ -->
+  <!-- ปุ่มย้อนกลับ (Back Button) -->
   <div id="back-button-container" class="absolute top-6 left-6 hidden">
     <button onclick="goBack()" class="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-full shadow-sm hover:border-stone-800 transition text-sm font-medium text-stone-700">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -44,6 +44,7 @@
     <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
       <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
 
+      <!-- เส้น Guide Frame สัดส่วน 700:550 -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
         <div class="w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
           <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
@@ -83,6 +84,7 @@
     let frames = [];
     let captureTimer = null;
     let isCapturing = false;
+    let mediaStream = null;
 
     async function loadConfig() {
       try {
@@ -103,14 +105,21 @@
     function goToStep(step, isBack = false) {
       if (isCapturing) stopCapture();
 
+      // ปิดกล้องเมื่อย้ายออกจาก Step 3
+      if (currentStep === 3 && step !== 3) {
+        stopCamera();
+      }
+
       document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
       document.getElementById(`step-${step}`).classList.remove('hidden');
 
+      // บันทึก History สำหรับปุ่มย้อนกลับ
       if (!isBack && currentStep !== step) {
         stepHistory.push(step);
       }
       currentStep = step;
 
+      // ซ่อน/แสดง ปุ่มย้อนกลับ
       const backBtn = document.getElementById('back-button-container');
       if (step === 1) {
         backBtn.classList.add('hidden');
@@ -143,6 +152,13 @@
       document.getElementById('countdown').classList.add('hidden');
     }
 
+    function stopCamera() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+    }
+
     function renderFrames() {
       const container = document.getElementById('frame-list');
       container.innerHTML = frames.map(f => `
@@ -162,11 +178,11 @@
 
     async function startCameraAndCapture() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
           video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
           audio: false 
         });
-        document.getElementById('webcam').srcObject = stream;
+        document.getElementById('webcam').srcObject = mediaStream;
         document.getElementById('retake-controls').classList.add('hidden');
         document.getElementById('camera-guide').classList.remove('hidden');
         
@@ -289,7 +305,17 @@
       document.getElementById('retake-controls').classList.remove('hidden');
     }
 
-    function renderFinalCanvas() {
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        if (!src) return resolve(null);
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function renderFinalCanvas() {
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
@@ -299,23 +325,19 @@
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      let loadedCount = 0;
-      capturedImages.forEach((imgSrc, i) => {
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
-          loadedCount++;
-          
-          if (loadedCount === 3 && selectedFrame) {
-            const frameImg = new Image();
-            frameImg.onload = () => {
-              ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-            };
-            frameImg.src = selectedFrame;
-          }
-        };
-        img.src = imgSrc;
-      });
+      try {
+        const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
+        shotImages.forEach((img, i) => {
+          if (img) ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
+        });
+
+        if (selectedFrame) {
+          const frameImg = await loadImage(selectedFrame);
+          if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+        }
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการโหลดรูปภาพเพื่อสร้าง Canvas", err);
+      }
     }
   </script>
 </body>
