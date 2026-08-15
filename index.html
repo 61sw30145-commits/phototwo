@@ -22,10 +22,10 @@
     <button onclick="goToStep(2)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
   </div>
 
-  <!-- Step 2: เลือกกรอบรูป -->
-  <div id="step-2" class="hidden text-center space-y-6 w-full max-w-md">
+  <!-- Step 2: เลือกกรอบรูป (อัปเดตให้แสดงตัวอย่างรูปกรอบ) -->
+  <div id="step-2" class="hidden text-center space-y-6 w-full max-w-lg">
     <h2 class="text-2xl font-light">เลือกกรอบรูป</h2>
-    <div id="frame-list" class="grid grid-cols-2 gap-4"></div>
+    <div id="frame-list" class="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto p-2"></div>
   </div>
 
   <!-- Step 3: กล้อง & เลือกแก้ไขรูป -->
@@ -99,11 +99,15 @@
       if (step === 4) renderFinalCanvas();
     }
 
+    // ฟังก์ชันแสดงการ์ดเลือกกรอบรูปพร้อมภาพตัวอย่าง (Preview)
     function renderFrames() {
       const container = document.getElementById('frame-list');
       container.innerHTML = frames.map(f => `
-        <div onclick="selectFrame('${f.file}')" class="border p-4 rounded-lg cursor-pointer hover:border-stone-800 bg-white shadow-sm">
-          <p class="text-sm font-medium">${f.name}</p>
+        <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
+          <div class="w-full aspect-[8/23] bg-stone-100 rounded-lg overflow-hidden flex items-center justify-center p-1 border border-stone-100">
+            <img src="${f.file}" alt="${f.name}" class="w-full h-full object-contain group-hover:scale-105 transition duration-200" onerror="this.src='https://via.placeholder.com/150x431?text=No+Preview'">
+          </div>
+          <p class="text-sm font-medium text-stone-700 group-hover:text-stone-900">${f.name}</p>
         </div>
       `).join('');
     }
