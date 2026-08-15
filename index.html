@@ -156,10 +156,17 @@
     function takePhoto(index) {
       const video = document.getElementById('webcam');
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      
+      // คำนวณครอบตัดรูปจากกลางเป็น 1:1 จัตุรัส
+      const minSize = Math.min(video.videoWidth, video.videoHeight);
+      canvas.width = minSize;
+      canvas.height = minSize;
+      
+      const startX = (video.videoWidth - minSize) / 2;
+      const startY = (video.videoHeight - minSize) / 2;
+      
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0);
+      ctx.drawImage(video, startX, startY, minSize, minSize, 0, 0, minSize, minSize);
       capturedImages[index] = canvas.toDataURL('image/png');
     }
 
