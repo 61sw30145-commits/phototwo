@@ -15,7 +15,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4">
 
-  <!-- Step 1: หน้าแรก (มีแค่ 1 ปุ่ม) -->
+  <!-- Step 1: หน้าแรก (มีแค่ 1 ปุ่มเท่านั้น) -->
   <div id="step-1" class="text-center space-y-6">
     <h1 class="text-4xl font-light tracking-wide">PHOTO BOOTH</h1>
     <button onclick="goToStep(2)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
@@ -27,7 +27,7 @@
     <div id="frame-list" class="grid grid-cols-2 gap-4"></div>
   </div>
 
-  <!-- Step 3: กล้อง (ไม่มีปุ่มซ้ำ) -->
+  <!-- Step 3: กล้องถ่ายอัตโนมัติ -->
   <div id="step-3" class="hidden text-center space-y-4 w-full max-w-md">
     <div class="relative aspect-[3/4] bg-stone-200 rounded-lg overflow-hidden shadow-sm">
       <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
@@ -36,14 +36,14 @@
     </div>
   </div>
 
-  <!-- Step 4: พรีวิวและสั่งปริ้นท์ -->
+  <!-- Step 4: สั่งปริ้นท์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">สั่งปริ้นท์รูปภาพ</h2>
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md"></canvas>
     </div>
     <div class="flex items-center justify-center gap-4">
-      <button onclick="triggerPrint()" class="px-6 py-2 bg-stone-800 text-white rounded-full">สั่งปริ้นท์</button>
+      <button onclick="window.print()" class="px-6 py-2 bg-stone-800 text-white rounded-full">สั่งปริ้นท์</button>
       <button onclick="location.reload()" class="px-6 py-2 border border-stone-800 rounded-full">ถ่ายใหม่</button>
     </div>
   </div>
@@ -175,10 +175,6 @@
         };
         img.src = imgSrc;
       });
-    }
-
-    function triggerPrint() {
-      window.print();
     }
   </script>
 </body>
