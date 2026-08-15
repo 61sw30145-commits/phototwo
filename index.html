@@ -67,7 +67,7 @@
     <div class="bg-white p-4 rounded-xl border border-stone-200 flex flex-col items-center space-y-2">
       <p class="text-sm font-medium text-stone-700">สแกนเพื่อรับไฟล์ GIF ขยับได้</p>
       <div id="qrcode" class="p-2 bg-white rounded flex items-center justify-center min-h-[128px]"></div>
-      <p id="qr-status" class="text-xs text-stone-400">กำลังสร้าง GIF และ QR Code...</p>
+      <p id="qr-status" class="text-xs text-stone-400">กำลังเตรียมไฟล์...</p>
     </div>
 
     <div class="flex items-center justify-center gap-4">
@@ -111,7 +111,7 @@
       }
       if (step === 4) {
         renderFinalCanvas();
-        generateGIFAndQR();
+        generateFastGIF();
       }
     }
 
@@ -135,7 +135,7 @@
     async function startCameraAndCapture() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } }, 
           audio: false 
         });
         document.getElementById('webcam').srcObject = stream;
@@ -287,18 +287,18 @@
       });
     }
 
-    // ฟังก์ชันประมวลผล GIF และสร้าง QR Code
-    function generateGIFAndQR() {
+    // ปรับปรุงฟังก์ชันสร้าง GIF ให้เร็วขึ้น (ย่อขนาด GIF เหลือ 350x275 + ลดคุณภาพ Render เพื่อความเร็วระดับมิลลิวินาที)
+    function generateFastGIF() {
       const qrContainer = document.getElementById('qrcode');
       const statusText = document.getElementById('qr-status');
       qrContainer.innerHTML = "";
-      statusText.innerText = "กำลังสร้าง GIF ขยับได้...";
+      statusText.innerText = "กำลังประมวลผล QR Code...";
 
       const gif = new GIF({
-        workers: 2,
-        quality: 10,
-        width: 700,
-        height: 550,
+        workers: 4,
+        quality: 20, // ปรับคุณภาพสมดุลระหว่างความเร็วและขนาดไฟล์
+        width: 350,  // ปรับย่อขนาด GIF ช่วยลดเวลาประมวลผลลง 4 เท่า
+        height: 275,
         workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js'
       });
 
@@ -306,7 +306,7 @@
       capturedImages.forEach(imgSrc => {
         const img = new Image();
         img.onload = () => {
-          gif.addFrame(img, { delay: 400 });
+          gif.addFrame(img, { delay: 350 });
           loadedCount++;
           if (loadedCount === 3) {
             gif.render();
@@ -316,12 +316,10 @@
       });
 
       gif.on('finished', function(blob) {
-        statusText.innerText = "กำลังสร้าง QR Code...";
         uploadAndShowQR(blob);
       });
     }
 
-    // ฟังก์ชันอัปโหลดไฟล์ GIF ไปที่ Imgur และแสดง QR Code
     async function uploadAndShowQR(blob) {
       const statusText = document.getElementById('qr-status');
       const formData = new FormData();
@@ -330,7 +328,7 @@
       try {
         const res = await fetch('https://api.imgur.com/3/image', {
           method: 'POST',
-          headers: { Authorization: 'Client-ID 546c25a59c58ad7' }, // Demo Client ID
+          headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
           body: formData
         });
         const data = await res.json();
@@ -343,12 +341,12 @@
             width: 128,
             height: 128
           });
-          statusText.innerText = "สแกนเพื่อดาวน์โหลด GIF";
+          statusText.innerText = "สแกนเพื่อรับไฟล์ GIF";
         } else {
-          statusText.innerText = "ไม่สามารถสร้าง QR Code ได้";
+          statusText.innerText = "เกิดข้อผิดพลาดในการรับไฟล์";
         }
       } catch (err) {
-        statusText.innerText = "ข้อผิดพลาดในการเชื่อมต่อเครือข่าย";
+        statusText.innerText = "ข้อผิดพลาดอินเทอร์เน็ต";
       }
     }
   </script>
