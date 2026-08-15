@@ -5,8 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Library สำหรับสร้าง QR Code -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     @media print {
       body * { visibility: hidden; }
@@ -53,19 +51,12 @@
     </div>
   </div>
 
-  <!-- Step 4: สั่งปริ้นท์ & รับไฟล์ดิจิทัล -->
+  <!-- Step 4: สั่งปริ้นท์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
-    <h2 class="text-2xl font-light">สั่งปริ้นท์ & รับไฟล์ดิจิทัล</h2>
+    <h2 class="text-2xl font-light">สั่งปริ้นท์รูปภาพ</h2>
     
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md"></canvas>
-    </div>
-
-    <!-- ส่วน QR Code แสดงไฟล์รูปภาพ -->
-    <div class="bg-white p-4 rounded-xl border border-stone-200 flex flex-col items-center space-y-2">
-      <p class="text-sm font-medium text-stone-700">สแกนเพื่อรับไฟล์รูปภาพดิจิทัล</p>
-      <div id="qrcode" class="p-2 bg-white rounded flex items-center justify-center min-h-[128px]"></div>
-      <p id="qr-status" class="text-xs text-stone-400">กำลังเตรียมไฟล์...</p>
     </div>
 
     <div class="flex items-center justify-center gap-4">
@@ -272,65 +263,16 @@
           ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
           loadedCount++;
           
-          if (loadedCount === 3) {
-            if (selectedFrame) {
-              const frameImg = new Image();
-              frameImg.onload = () => {
-                ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-                uploadAndShowQR();
-              };
-              frameImg.src = selectedFrame;
-            } else {
-              uploadAndShowQR();
-            }
+          if (loadedCount === 3 && selectedFrame) {
+            const frameImg = new Image();
+            frameImg.onload = () => {
+              ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+            };
+            frameImg.src = selectedFrame;
           }
         };
         img.src = imgSrc;
       });
-    }
-
-    // ฟังก์ชันอัปโหลดภาพแบบเร่งความเร็ว (ย่อขนาด + แปลงเป็น JPEG คุณภาพ 70%)
-    async function uploadAndShowQR() {
-      const canvas = document.getElementById('final-canvas');
-      const statusText = document.getElementById('qr-status');
-      document.getElementById('qrcode').innerHTML = "";
-      statusText.innerText = "กำลังสร้าง QR Code...";
-
-      // ย่อขนาด Canvas ลง 50% เพื่อลดความจุไฟล์และเพิ่มความเร็วในการส่งข้อมูล
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvas.width * 0.5;
-      tempCanvas.height = canvas.height * 0.5;
-      const ctx = tempCanvas.getContext('2d');
-      ctx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
-
-      tempCanvas.toBlob(async (blob) => {
-        const formData = new FormData();
-        formData.append('image', blob);
-
-        try {
-          const res = await fetch('https://api.imgur.com/3/image', {
-            method: 'POST',
-            headers: { Authorization: 'Client-ID 546c25a59c58ad7' },
-            body: formData
-          });
-          const data = await res.json();
-
-          if (data.success) {
-            const downloadUrl = data.data.link;
-            document.getElementById('qrcode').innerHTML = "";
-            new QRCode(document.getElementById('qrcode'), {
-              text: downloadUrl,
-              width: 128,
-              height: 128
-            });
-            statusText.innerText = "สแกนเพื่อรับรูปภาพดิจิทัล";
-          } else {
-            statusText.innerText = "เกิดข้อผิดพลาดในการรับไฟล์";
-          }
-        } catch (err) {
-          statusText.innerText = "ข้อผิดพลาดอินเทอร์เน็ต";
-        }
-      }, 'image/jpeg', 0.7);
     }
   </script>
 </body>
