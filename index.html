@@ -393,6 +393,7 @@
       const ctx = canvas.getContext('2d');
 
       if (targetShotCount === 1) {
+        // ขนาด 80mm x 130mm (1200px x 1950px)
         canvas.width = 1200;
         canvas.height = 1950;
 
@@ -403,11 +404,11 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (shotImages[0]) {
-            const photoW = 1050; 
-            const photoH = 1500; 
+            const photoW = 1050; // 70mm
+            const photoH = 1500; // 100mm
 
-            const photoX = (canvas.width - photoW) / 2;  
-            const photoY = (canvas.height - photoH) / 2; 
+            const photoX = 75;  // ห่างขอบข้างละ 5mm (75px)
+            const photoY = 225; // ห่างขอบบน 15mm (225px) (เหลือขอบล่าง 15mm / 225px)
 
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
@@ -421,6 +422,7 @@
         }
 
       } else {
+        // ขนาด 3 ช็อต (800x2300px)
         canvas.width = 800;
         canvas.height = 2300;
 
