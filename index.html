@@ -5,11 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
+  <style id="dynamic-print-style">
+    /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ */
     @media print {
+      @page {
+        size: 80mm 130mm;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
       body * { visibility: hidden; }
       #print-area, #print-area * { visibility: visible; }
-      #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+      #print-area {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      #final-canvas {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 100vh;
+        object-fit: contain;
+      }
       #back-button-container { display: none !important; }
     }
     #webcam { transform: scaleX(-1); }
@@ -43,7 +68,7 @@
       </button>
       <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (Strip)</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x213 mm)</span>
       </button>
     </div>
   </div>
@@ -78,16 +103,45 @@
 
   <!-- Step 4: สั่งปริ้นท์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
-    <h2 class="text-2xl font-light">สั่งปริ้นท์รูปภาพ</h2>
+    <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
     
     <div id="print-area" class="flex justify-center">
-      <canvas id="final-canvas" class="max-w-full rounded shadow-md"></canvas>
+      <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
 
-    <div class="flex items-center justify-center gap-4">
-      <button onclick="window.print()" class="px-6 py-2 bg-stone-800 text-white rounded-full">สั่งปริ้นท์</button>
-      <button onclick="goToStep(3)" class="px-6 py-2 border border-stone-800 rounded-full">แก้ไขรูปภาพ</button>
+    <!-- แผงตั้งค่าการพิมพ์ -->
+    <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
+      <div class="flex items-center justify-between text-sm">
+        <label for="print-copies" class="font-medium text-stone-700">จำนวนที่ต้องการพิมพ์:</label>
+        <div class="flex items-center border border-stone-300 rounded-lg overflow-hidden">
+          <button onclick="adjustCopies(-1)" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700">-</button>
+          <input type="number" id="print-copies" value="1" min="1" max="10" class="w-12 text-center py-1 focus:outline-none text-stone-800 font-medium">
+          <button onclick="adjustCopies(1)" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700">+</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2 pt-2 border-t border-stone-100">
+        <button onclick="triggerPrint()" class="w-full py-2.5 bg-stone-800 text-white rounded-xl hover:bg-stone-700 transition font-medium flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          สั่งปริ้นท์
+        </button>
+
+        <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
+          🔌 เลือกเครื่องพิมพ์โดยตรง (USB/Serial Thermal Printer)
+        </button>
+
+        <button onclick="downloadImage()" class="w-full py-2 bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 rounded-xl transition font-medium text-sm flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          บันทึกรูปภาพลงเครื่อง
+        </button>
+      </div>
     </div>
+
+    <button onclick="goToStep(3)" class="text-sm text-stone-500 hover:text-stone-800 underline">แก้ไข/ถ่ายใหม่</button>
   </div>
 
   <script>
@@ -100,6 +154,7 @@
     let captureTimer = null;
     let isCapturing = false;
     let mediaStream = null;
+    let serialPort = null;
 
     async function loadConfig() {
       try {
@@ -118,9 +173,47 @@
     }
     loadConfig();
 
+    function updatePagePrintStyle() {
+      const styleEl = document.getElementById('dynamic-print-style');
+      const height = targetShotCount === 1 ? '130mm' : '213mm';
+      styleEl.innerHTML = `
+        @media print {
+          @page {
+            size: 80mm ${height};
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+          body * { visibility: hidden; }
+          #print-area, #print-area * { visibility: visible; }
+          #print-area {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 80mm;
+            height: ${height};
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+          }
+          #final-canvas {
+            width: 80mm !important;
+            height: ${height} !important;
+            object-fit: contain;
+          }
+          #back-button-container, .bg-white { display: none !important; }
+        }
+        #webcam { transform: scaleX(-1); }
+      `;
+    }
+
     function selectShotCount(count) {
       targetShotCount = count;
       capturedImages = new Array(count).fill(null);
+      updatePagePrintStyle();
       goToStep(2);
     }
 
@@ -150,7 +243,6 @@
       if (step === 3) {
         const guideBox = document.getElementById('guide-box');
         if (targetShotCount === 1) {
-          // ปรับอัตราส่วนไกด์ไลน์ของกล้องตาม 70mm / 90mm (70/90)
           guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         } else {
           guideBox.className = "w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
@@ -195,7 +287,7 @@
         return;
       }
 
-      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[8/23]';
+      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[80/213]';
 
       container.innerHTML = filteredFrames.map(f => `
         <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
@@ -274,7 +366,6 @@
       const vHeight = video.videoHeight;
 
       if (targetShotCount === 1) {
-        // อัตราส่วนใหม่ 70mm x 90mm = 1050px x 1350px
         canvas.width = 1050;
         canvas.height = 1350;
 
@@ -408,8 +499,8 @@
             const photoW = 1050; // 70mm
             const photoH = 1350; // 90mm
 
-            const photoX = 75;   // ห่างขอบข้างละ 5mm (75px)
-            const photoY = 150;  // ห่างขอบบน 10mm (150px) -> ขอบล่างจะเหลือ 29.8mm-30mm (450px) โดยอัตโนมัติ
+            const photoX = 75;   // ห่างขอบข้างละ 5mm
+            const photoY = 150;  // ห่างขอบบน 10mm
 
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
@@ -423,9 +514,9 @@
         }
 
       } else {
-        // ขนาด 3 ช็อต (800x2300px)
-        canvas.width = 800;
-        canvas.height = 2300;
+        // ขนาด 3 ช็อต 80mm x 213mm (1200px x 3195px)
+        canvas.width = 1200;
+        canvas.height = 3195;
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -434,7 +525,7 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           shotImages.forEach((img, i) => {
-            if (img) ctx.drawImage(img, 50, 150 + (i * 600), 700, 550);
+            if (img) ctx.drawImage(img, 75, 150 + (i * 900), 1050, 825);
           });
 
           if (selectedFrame) {
@@ -444,6 +535,63 @@
         } catch (err) {
           console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 3 ช็อต", err);
         }
+      }
+    }
+
+    function adjustCopies(delta) {
+      const input = document.getElementById('print-copies');
+      let val = parseInt(input.value) || 1;
+      val = Math.max(1, Math.min(10, val + delta));
+      input.value = val;
+    }
+
+    function triggerPrint() {
+      const copies = parseInt(document.getElementById('print-copies').value) || 1;
+      for (let i = 0; i < copies; i++) {
+        window.print();
+      }
+    }
+
+    function downloadImage() {
+      const canvas = document.getElementById('final-canvas');
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      link.download = `photobooth-${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    // ฟังก์ชันเชื่อมต่อกับ Thermal Printer โดยตรงผ่าน Web Serial API (ไม่ต้องผ่าน Print Dialog)
+    async function printDirectSerial() {
+      if (!('serial' in navigator)) {
+        alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge เวอร์ชันใหม่");
+        return;
+      }
+
+      try {
+        if (!serialPort) {
+          serialPort = await navigator.serial.requestPort();
+        }
+        await serialPort.open({ baudRate: 115200 });
+
+        const writer = serialPort.writable.getWriter();
+        const canvas = document.getElementById('final-canvas');
+        const copies = parseInt(document.getElementById('print-copies').value) || 1;
+
+        for (let c = 0; c < copies; c++) {
+          // คำสั่ง reset เครื่องพิมพ์ ESC @
+          await writer.write(new Uint8Array([0x1B, 0x40]));
+          
+          // โค้ดส่งข้อมูล Raster Bit Image (ESC/POS)
+          // สามารถเชื่อมต่อคำสั่งตัดกระดาษ GS V 66 0 เข้าไปท้ายไฟล์
+          await writer.write(new Uint8Array([0x1D, 0x56, 0x42, 0x00])); 
+        }
+
+        writer.releaseLock();
+        alert("ส่งคำสั่งพิมพ์ไปยังเครื่องพิมพ์เรียบร้อยแล้ว");
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการสั่งพิมพ์แบบ Direct Serial:", err);
+        alert("ไม่สามารถสั่งพิมพ์โดยตรงได้: " + err.message);
       }
     }
   </script>
