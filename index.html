@@ -150,7 +150,8 @@
       if (step === 3) {
         const guideBox = document.getElementById('guide-box');
         if (targetShotCount === 1) {
-          guideBox.className = "w-full aspect-[70/100] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+          // ปรับอัตราส่วนไกด์ไลน์ของกล้องตาม 70mm / 90mm (70/90)
+          guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         } else {
           guideBox.className = "w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         }
@@ -273,10 +274,11 @@
       const vHeight = video.videoHeight;
 
       if (targetShotCount === 1) {
+        // อัตราส่วนใหม่ 70mm x 90mm = 1050px x 1350px
         canvas.width = 1050;
-        canvas.height = 1500;
+        canvas.height = 1350;
 
-        const targetRatio = 1050 / 1500;
+        const targetRatio = 1050 / 1350;
         const videoRatio = vWidth / vHeight;
 
         let cropWidth, cropHeight, startX, startY;
@@ -404,10 +406,10 @@
           
           if (shotImages[0]) {
             const photoW = 1050; // 70mm
-            const photoH = 1500; // 100mm
+            const photoH = 1350; // 90mm
 
-            const photoX = 75;  // ห่างขอบข้างละ 5mm (75px)
-            const photoY = 225; // ห่างขอบบน 15mm (225px) (เหลือขอบล่าง 15mm / 225px)
+            const photoX = 75;   // ห่างขอบข้างละ 5mm (75px)
+            const photoY = 150;  // ห่างขอบบน 10mm (150px) -> ขอบล่างจะเหลือ 29.8mm-30mm (450px) โดยอัตโนมัติ
 
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
