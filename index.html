@@ -136,7 +136,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          บันทึกรูปภาพลงเครื่อง
+          บันทึกรูปภาพลงเครื่อง (.jpg)
         </button>
       </div>
     </div>
@@ -485,7 +485,6 @@
       const ctx = canvas.getContext('2d');
 
       if (targetShotCount === 1) {
-        // ขนาด 80mm x 130mm (1200px x 1950px)
         canvas.width = 1200;
         canvas.height = 1950;
 
@@ -496,11 +495,11 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (shotImages[0]) {
-            const photoW = 1050; // 70mm
-            const photoH = 1350; // 90mm
+            const photoW = 1050;
+            const photoH = 1350;
 
-            const photoX = 75;   // ห่างขอบข้างละ 5mm
-            const photoY = 150;  // ห่างขอบบน 10mm
+            const photoX = 75;
+            const photoY = 150;
 
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
@@ -514,7 +513,6 @@
         }
 
       } else {
-        // ขนาด 3 ช็อต 80mm x 213mm (1200px x 3195px)
         canvas.width = 1200;
         canvas.height = 3195;
 
@@ -552,16 +550,32 @@
       }
     }
 
-    function downloadImage() {
+    async function downloadImage() {
       const canvas = document.getElementById('final-canvas');
-      const link = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      link.download = `photobooth-${timestamp}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+      try {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Photo Booth',
+            text: 'รูปถ่ายจาก Photo Booth'
+          });
+        } else {
+          const link = document.createElement('a');
+          link.download = `photobooth-${Date.now()}.jpg`;
+          link.href = dataUrl;
+          link.click();
+        }
+      } catch (err) {
+        console.error('Save image failed:', err);
+      }
     }
 
-    // ฟังก์ชันเชื่อมต่อกับ Thermal Printer โดยตรงผ่าน Web Serial API (ไม่ต้องผ่าน Print Dialog)
     async function printDirectSerial() {
       if (!('serial' in navigator)) {
         alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge เวอร์ชันใหม่");
@@ -575,15 +589,10 @@
         await serialPort.open({ baudRate: 115200 });
 
         const writer = serialPort.writable.getWriter();
-        const canvas = document.getElementById('final-canvas');
         const copies = parseInt(document.getElementById('print-copies').value) || 1;
 
         for (let c = 0; c < copies; c++) {
-          // คำสั่ง reset เครื่องพิมพ์ ESC @
           await writer.write(new Uint8Array([0x1B, 0x40]));
-          
-          // โค้ดส่งข้อมูล Raster Bit Image (ESC/POS)
-          // สามารถเชื่อมต่อคำสั่งตัดกระดาษ GS V 66 0 เข้าไปท้ายไฟล์
           await writer.write(new Uint8Array([0x1D, 0x56, 0x42, 0x00])); 
         }
 
