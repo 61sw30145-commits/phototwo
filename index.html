@@ -9,7 +9,7 @@
     /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ */
     @media print {
       @page {
-        size: 80mm 130mm;
+        size: 80mm 224.6mm;
         margin: 0;
       }
       body {
@@ -23,19 +23,18 @@
         position: fixed;
         left: 0;
         top: 0;
-        width: 100vw;
-        height: 100vh;
+        width: 80mm;
+        height: 224.6mm;
         display: flex;
         justify-content: center;
         align-items: flex-start;
       }
       #final-canvas {
-        width: 100% !important;
-        height: auto !important;
-        max-height: 100vh;
+        width: 80mm !important;
+        height: 224.6mm !important;
         object-fit: contain;
       }
-      #back-button-container { display: none !important; }
+      #back-button-container, .bg-white { display: none !important; }
     }
     #webcam { transform: scaleX(-1); }
   </style>
@@ -68,7 +67,7 @@
       </button>
       <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x213 mm)</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x224.6 mm)</span>
       </button>
     </div>
   </div>
@@ -168,7 +167,7 @@
           { id: 3, name: "โปร่งใส (3 รูป)", file: "frame1.png", shots: 3 },
           { id: 4, name: "ใบเสร็จ (3 รูป)", file: "frame2.png", shots: 3 },
           { id: 5, name: "บัวหลวงใหญ่ (3 รูป)", file: "frame3.png", shots: 3 },
-          { id: 6, name: "ดาร์กโหมด (3 รูป)", file: "frame4.png", shots: 3}
+          { id: 6, name: "ดาร์กโหมด (3 รูป)", file: "frame4.png", shots: 3 }
         ];
       }
     }
@@ -176,7 +175,7 @@
 
     function updatePagePrintStyle() {
       const styleEl = document.getElementById('dynamic-print-style');
-      const height = targetShotCount === 1 ? '130mm' : '213mm';
+      const height = targetShotCount === 1 ? '130mm' : '224.6mm';
       styleEl.innerHTML = `
         @media print {
           @page {
@@ -246,7 +245,7 @@
         if (targetShotCount === 1) {
           guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         } else {
-          guideBox.className = "w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+          guideBox.className = "w-full aspect-[70/55] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         }
 
         if (!capturedImages[0]) {
@@ -288,7 +287,7 @@
         return;
       }
 
-      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[80/213]';
+      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[80/224.6]';
 
       container.innerHTML = filteredFrames.map(f => `
         <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
@@ -392,10 +391,11 @@
         ctx.scale(-1, 1);
         ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
       } else {
-        canvas.width = 700;
-        canvas.height = 550;
+        // อัตราส่วน 70:55
+        canvas.width = 1050;
+        canvas.height = 825;
 
-        const targetRatio = 700 / 550;
+        const targetRatio = 70 / 55;
         const videoRatio = vWidth / vHeight;
 
         let cropWidth, cropHeight, startX, startY;
@@ -485,7 +485,6 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
-      // ปรับแต่ง Brightness & Contrast ก่อนวาดภาพเพื่อช่วยดึงรายละเอียดเงามืด
       ctx.filter = 'brightness(115%) contrast(125%)';
 
       if (targetShotCount === 1) {
@@ -508,7 +507,7 @@
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
 
-          ctx.filter = 'none'; // ปลด Filter ออกก่อนวาดกรอบ
+          ctx.filter = 'none';
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -518,8 +517,10 @@
         }
 
       } else {
-        canvas.width = 1200;
-        canvas.height = 3195;
+        // อัตราส่วน 1mm = 15px (80mm x 224.6mm -> 1200px x 3369px)
+        const scale = 15;
+        canvas.width = 80 * scale;     // 1200 px
+        canvas.height = 224.6 * scale; // 3369 px
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -527,11 +528,21 @@
         try {
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
+          const photoW = 70 * scale; // 1050 px
+          const photoH = 55 * scale; // 825 px
+          const photoX = 5 * scale;  // 75 px
+
+          const yPositions = [
+            14.6 * scale,                     // รูปที่ 1: ห่างจากขอบบน 14.6mm (219px)
+            (14.6 + 55 + 5) * scale,           // รูปที่ 2: ห่างจากรูปที่ 1 5mm (1119px)
+            (14.6 + 55 + 5 + 55 + 5) * scale   // รูปที่ 3: ห่างจากรูปที่ 2 5mm (2019px)
+          ];
+
           shotImages.forEach((img, i) => {
-            if (img) ctx.drawImage(img, 75, 150 + (i * 900), 1050, 825);
+            if (img) ctx.drawImage(img, photoX, yPositions[i], photoW, photoH);
           });
 
-          ctx.filter = 'none'; // ปลด Filter ออกก่อนวาดกรอบ
+          ctx.filter = 'none';
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -587,12 +598,10 @@
        ============================================================= */
 
     function generateRasterBitImageCommand(canvas) {
-      // หน้ากว้างหัวพิมพ์ Xprinter XP-N160II ปกติคือ 576 dots (80mm)
       const targetWidth = 576;
       const scale = targetWidth / canvas.width;
       const targetHeight = Math.round(canvas.height * scale);
 
-      // ย่อภาพ canvas มาใส่ offscreen canvas
       const offCanvas = document.createElement('canvas');
       offCanvas.width = targetWidth;
       offCanvas.height = targetHeight;
@@ -602,20 +611,18 @@
       const imgData = offCtx.getImageData(0, 0, targetWidth, targetHeight);
       const data = imgData.data;
 
-      // แปลงเป็น Grayscale Array
       const gray = new Float32Array(targetWidth * targetHeight);
       for (let i = 0; i < data.length; i += 4) {
         gray[i / 4] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
       }
 
-      // Floyd-Steinberg Dithering Algorithm
       const mono = new Uint8Array(targetWidth * targetHeight);
       for (let y = 0; y < targetHeight; y++) {
         for (let x = 0; x < targetWidth; x++) {
           const idx = y * targetWidth + x;
           const oldPixel = gray[idx];
           const newPixel = oldPixel < 128 ? 0 : 255;
-          mono[idx] = newPixel === 0 ? 1 : 0; // 1 = ดำ (สั่งพิมพ์), 0 = ขาว
+          mono[idx] = newPixel === 0 ? 1 : 0;
           const quantError = oldPixel - newPixel;
 
           if (x + 1 < targetWidth)
@@ -629,7 +636,6 @@
         }
       }
 
-      // สร้าง ESC/POS Command: GS v 0 (Raster Bit Image)
       const xL = (targetWidth / 8) & 0xFF;
       const xH = ((targetWidth / 8) >> 8) & 0xFF;
       const yL = targetHeight & 0xFF;
@@ -651,9 +657,8 @@
         }
       }
 
-      // รวม Header, Image Data, และคำสั่งตัดกระดาษ
-      const initCmd = new Uint8Array([0x1B, 0x40]); // Initialize Printer
-      const cutCmd = new Uint8Array([0x1D, 0x56, 0x42, 0x00]); // Feed & Cut Paper
+      const initCmd = new Uint8Array([0x1B, 0x40]);
+      const cutCmd = new Uint8Array([0x1D, 0x56, 0x42, 0x00]);
 
       const fullBuffer = new Uint8Array(initCmd.length + header.length + imageBytes.length + cutCmd.length);
       fullBuffer.set(initCmd, 0);
@@ -680,7 +685,6 @@
         const copies = parseInt(document.getElementById('print-copies').value) || 1;
         const canvas = document.getElementById('final-canvas');
 
-        // ประมวลผลภาพแบบ Dithering
         const printBuffer = generateRasterBitImageCommand(canvas);
 
         for (let c = 0; c < copies; c++) {
