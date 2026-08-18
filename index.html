@@ -92,7 +92,7 @@
       <img id="shot-preview-overlay" class="absolute inset-0 w-full h-full object-contain hidden z-20" />
       <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white bg-black/40 hidden z-30">3</div>
     </div>
-    
+
     <div id="retake-controls" class="hidden space-y-3">
       <p class="text-sm font-medium text-stone-700">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้น:</p>
       <div id="shots-preview" class="flex justify-center gap-2"></div>
@@ -103,7 +103,7 @@
   <!-- Step 4: สั่งพิมพ์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
-    
+
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
@@ -175,34 +175,44 @@
 
     function updatePagePrintStyle() {
       const styleEl = document.getElementById('dynamic-print-style');
-      const height = targetShotCount === 1 ? '130mm' : '224.6mm';
+      const canvas = document.getElementById('final-canvas');
+      
+      const printWidth = canvas ? canvas.width : 1200;
+      const printHeight = canvas ? canvas.height : (targetShotCount === 1 ? 1950 : 3369);
+
       styleEl.innerHTML = `
         @media print {
           @page {
-            size: 80mm ${height};
-            margin: 0;
+            size: ${printWidth}px ${printHeight}px;
+            margin: 0 !important;
           }
-          body {
-            margin: 0;
-            padding: 0;
+          html, body {
+            width: ${printWidth}px !important;
+            height: ${printHeight}px !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #fff;
+            overflow: hidden;
           }
           body * { visibility: hidden; }
           #print-area, #print-area * { visibility: visible; }
           #print-area {
-            position: fixed;
+            position: absolute;
             left: 0;
             top: 0;
-            width: 80mm;
-            height: ${height};
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block;
           }
           #final-canvas {
-            width: 80mm !important;
-            height: ${height} !important;
-            object-fit: contain;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            object-fit: fill !important;
+            display: block !important;
           }
           #back-button-container, .bg-white { display: none !important; }
         }
@@ -254,7 +264,11 @@
           showRetakeUI();
         }
       }
-      if (step === 4) renderFinalCanvas();
+      if (step === 4) {
+        renderFinalCanvas().then(() => {
+          updatePagePrintStyle();
+        });
+      }
     }
 
     function goBack() {
@@ -391,7 +405,6 @@
         ctx.scale(-1, 1);
         ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
       } else {
-        // อัตราส่วน 70:55
         canvas.width = 1050;
         canvas.height = 825;
 
@@ -517,7 +530,6 @@
         }
 
       } else {
-        // อัตราส่วน 1mm = 15px (80mm x 224.6mm -> 1200px x 3369px)
         const scale = 15;
         canvas.width = 80 * scale;     // 1200 px
         canvas.height = 224.6 * scale; // 3369 px
@@ -533,9 +545,9 @@
           const photoX = 5 * scale;  // 75 px
 
           const yPositions = [
-            14.6 * scale,                     // รูปที่ 1: ห่างจากขอบบน 14.6mm (219px)
-            (14.6 + 55 + 5) * scale,           // รูปที่ 2: ห่างจากรูปที่ 1 5mm (1119px)
-            (14.6 + 55 + 5 + 55 + 5) * scale   // รูปที่ 3: ห่างจากรูปที่ 2 5mm (2019px)
+            14.6 * scale,                     // รูปที่ 1
+            (14.6 + 55 + 5) * scale,           // รูปที่ 2
+            (14.6 + 55 + 5 + 55 + 5) * scale   // รูปที่ 3
           ];
 
           shotImages.forEach((img, i) => {
