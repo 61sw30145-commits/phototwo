@@ -6,7 +6,6 @@
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
-    /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ - ปรับแต่งสำหรับ Xprinter XP-N160II */
     @media print {
       @page {
         size: 80mm auto;
@@ -24,7 +23,7 @@
         position: absolute;
         left: 0;
         top: 0;
-        width: 72mm !important; /* พื้นที่พิมพ์จริงของหัวพิมพ์ 80mm */
+        width: 72mm !important;
         margin: 0 auto;
         display: block;
       }
@@ -36,7 +35,6 @@
       }
       #back-button-container, .bg-white { display: none !important; }
     }
-    #webcam { transform: scaleX(-1); }
   </style>
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
@@ -54,7 +52,7 @@
   <!-- Step 1: หน้าแรก -->
   <div id="step-1" class="text-center space-y-6">
     <h1 class="text-4xl font-light tracking-wide">PHOTO BOOTH</h1>
-    <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
+    <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มเลือกรูป</button>
   </div>
 
   <!-- Step 1.5: เลือกจำนวนช็อต -->
@@ -63,11 +61,11 @@
     <div class="grid grid-cols-2 gap-4">
       <button onclick="selectShotCount(1)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">1</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 1 ช็อต (80x130 mm)</span>
+        <span class="text-sm font-medium text-stone-600">เลือก 1 รูป (80x130 mm)</span>
       </button>
       <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x213 mm)</span>
+        <span class="text-sm font-medium text-stone-600">เลือก 3 รูป (80x213 mm)</span>
       </button>
     </div>
   </div>
@@ -78,26 +76,15 @@
     <div id="frame-list" class="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto p-2"></div>
   </div>
 
-  <!-- Step 3: กล้อง & เลือกแก้ไขรูป -->
-  <div id="step-3" class="hidden text-center space-y-4 w-full max-w-md">
-    <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
-      <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
-
-      <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-        <div id="guide-box" class="border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
-          <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
-        </div>
-      </div>
-
-      <img id="shot-preview-overlay" class="absolute inset-0 w-full h-full object-contain hidden z-20" />
-      <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white bg-black/40 hidden z-30">3</div>
-    </div>
+  <!-- Step 3: อัปโหลดรูปภาพ -->
+  <div id="step-3" class="hidden text-center space-y-6 w-full max-w-md">
+    <h2 class="text-2xl font-light">อัปโหลดรูปภาพของคุณ</h2>
     
-    <div id="retake-controls" class="hidden space-y-3">
-      <p class="text-sm font-medium text-stone-700">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้น:</p>
-      <div id="shots-preview" class="flex justify-center gap-2"></div>
-      <button onclick="goToStep(4)" class="px-6 py-2 bg-stone-800 text-white rounded-full">ยืนยันรูปภาพ</button>
-    </div>
+    <div id="upload-inputs" class="space-y-4"></div>
+
+    <button id="confirm-images-btn" onclick="goToStep(4)" class="w-full py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition hidden">
+      ยืนยันรูปภาพ
+    </button>
   </div>
 
   <!-- Step 4: สั่งปริ้นท์ -->
@@ -108,7 +95,6 @@
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
 
-    <!-- แผงตั้งค่าการพิมพ์ -->
     <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
       <div class="flex items-center justify-between text-sm">
         <label for="print-copies" class="font-medium text-stone-700">จำนวนที่ต้องการพิมพ์:</label>
@@ -140,7 +126,7 @@
       </div>
     </div>
 
-    <button onclick="goToStep(3)" class="text-sm text-stone-500 hover:text-stone-800 underline">แก้ไข/ถ่ายใหม่</button>
+    <button onclick="goToStep(3)" class="text-sm text-stone-500 hover:text-stone-800 underline">เปลี่ยนรูปภาพ</button>
   </div>
 
   <script>
@@ -150,9 +136,6 @@
     let targetShotCount = 3;
     let capturedImages = [];
     let frames = [];
-    let captureTimer = null;
-    let isCapturing = false;
-    let mediaStream = null;
     let serialPort = null;
 
     async function loadConfig() {
@@ -204,7 +187,6 @@
           }
           #back-button-container, .bg-white { display: none !important; }
         }
-        #webcam { transform: scaleX(-1); }
       `;
     }
 
@@ -216,12 +198,6 @@
     }
 
     function goToStep(step, isBack = false) {
-      if (isCapturing) stopCapture();
-
-      if (currentStep === 3 && step !== 3) {
-        stopCamera();
-      }
-
       document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
       document.getElementById(`step-${step}`).classList.remove('hidden');
 
@@ -238,20 +214,7 @@
       }
 
       if (step === 2) renderFrames();
-      if (step === 3) {
-        const guideBox = document.getElementById('guide-box');
-        if (targetShotCount === 1) {
-          guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
-        } else {
-          guideBox.className = "w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
-        }
-
-        if (!capturedImages[0]) {
-          startCameraAndCapture();
-        } else {
-          showRetakeUI();
-        }
-      }
+      if (step === 3) renderUploadInputs();
       if (step === 4) renderFinalCanvas();
     }
 
@@ -260,19 +223,6 @@
         stepHistory.pop();
         const prevStep = stepHistory[stepHistory.length - 1];
         goToStep(prevStep, true);
-      }
-    }
-
-    function stopCapture() {
-      isCapturing = false;
-      if (captureTimer) clearInterval(captureTimer);
-      document.getElementById('countdown').classList.add('hidden');
-    }
-
-    function stopCamera() {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-        mediaStream = null;
       }
     }
 
@@ -302,170 +252,48 @@
       goToStep(3);
     }
 
-    async function startCameraAndCapture() {
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
-          audio: false 
-        });
-        document.getElementById('webcam').srcObject = mediaStream;
-        document.getElementById('retake-controls').classList.add('hidden');
-        document.getElementById('camera-guide').classList.remove('hidden');
-        
-        setTimeout(() => {
-          capturedImages = new Array(targetShotCount).fill(null);
-          isCapturing = true;
-          captureNext(0);
-        }, 1000);
-      } catch (err) {
-        alert("ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตสิทธิ์การใช้กล้อง");
-      }
-    }
+    function renderUploadInputs() {
+      const container = document.getElementById('upload-inputs');
+      container.innerHTML = '';
 
-    function captureNext(index) {
-      if (!isCapturing || index >= targetShotCount) {
-        showRetakeUI();
-        return;
-      }
-
-      document.getElementById('shot-preview-overlay').classList.add('hidden');
-
-      let count = 3;
-      const cdEl = document.getElementById('countdown');
-      cdEl.classList.remove('hidden');
-      cdEl.innerText = count;
-
-      captureTimer = setInterval(() => {
-        count--;
-        if (count > 0) {
-          cdEl.innerText = count;
-        } else {
-          clearInterval(captureTimer);
-          cdEl.classList.add('hidden');
-          
-          takePhoto(index);
-
-          const previewImg = document.getElementById('shot-preview-overlay');
-          previewImg.src = capturedImages[index];
-          previewImg.classList.remove('hidden');
-
-          setTimeout(() => {
-            if (isCapturing) captureNext(index + 1);
-          }, 3000);
-        }
-      }, 1000);
-    }
-
-    function takePhoto(index) {
-      const video = document.getElementById('webcam');
-      const canvas = document.createElement('canvas');
-      
-      const vWidth = video.videoWidth;
-      const vHeight = video.videoHeight;
-
-      if (targetShotCount === 1) {
-        canvas.width = 576;
-        canvas.height = 740;
-
-        const targetRatio = 576 / 740;
-        const videoRatio = vWidth / vHeight;
-
-        let cropWidth, cropHeight, startX, startY;
-
-        if (videoRatio > targetRatio) {
-          cropHeight = vHeight;
-          cropWidth = vHeight * targetRatio;
-          startX = (vWidth - cropWidth) / 2;
-          startY = 0;
-        } else {
-          cropWidth = vWidth;
-          cropHeight = vWidth / targetRatio;
-          startX = 0;
-          startY = (vHeight - cropHeight) / 2;
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
-      } else {
-        canvas.width = 576;
-        canvas.height = 452;
-
-        const targetRatio = 576 / 452;
-        const videoRatio = vWidth / vHeight;
-
-        let cropWidth, cropHeight, startX, startY;
-
-        if (videoRatio > targetRatio) {
-          cropHeight = vHeight;
-          cropWidth = vHeight * targetRatio;
-          startX = (vWidth - cropWidth) / 2;
-          startY = 0;
-        } else {
-          cropWidth = vWidth;
-          cropHeight = vWidth / targetRatio;
-          startX = 0;
-          startY = (vHeight - cropHeight) / 2;
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
-      }
-
-      capturedImages[index] = canvas.toDataURL('image/png');
-    }
-
-    function retakeSingleShot(index) {
-      isCapturing = true;
-      document.getElementById('shot-preview-overlay').classList.add('hidden');
-      document.getElementById('retake-controls').classList.add('hidden');
-      document.getElementById('camera-guide').classList.remove('hidden');
-      
-      let count = 3;
-      const cdEl = document.getElementById('countdown');
-      cdEl.classList.remove('hidden');
-      cdEl.innerText = count;
-
-      captureTimer = setInterval(() => {
-        count--;
-        if (count > 0) {
-          cdEl.innerText = count;
-        } else {
-          clearInterval(captureTimer);
-          cdEl.classList.add('hidden');
-          takePhoto(index);
-          
-          const previewImg = document.getElementById('shot-preview-overlay');
-          previewImg.src = capturedImages[index];
-          previewImg.classList.remove('hidden');
-
-          setTimeout(() => {
-            document.getElementById('shot-preview-overlay').classList.add('hidden');
-            showRetakeUI();
-          }, 3000);
-        }
-      }, 1000);
-    }
-
-    function showRetakeUI() {
-      isCapturing = false;
-      document.getElementById('shot-preview-overlay').classList.add('hidden');
-      document.getElementById('camera-guide').classList.add('hidden');
-
-      const previewContainer = document.getElementById('shots-preview');
-      previewContainer.innerHTML = capturedImages.map((img, i) => `
-        <div class="relative cursor-pointer border-2 border-stone-300 hover:border-stone-800 rounded overflow-hidden group" onclick="retakeSingleShot(${i})">
-          <img src="${img}" class="w-20 h-16 object-cover">
-          <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-90 transition">
-            <span class="text-white text-[11px] font-medium bg-black/60 px-1.5 py-0.5 rounded">ถ่ายใหม่</span>
+      for (let i = 0; i < targetShotCount; i++) {
+        const inputWrapper = document.createElement('div');
+        inputWrapper.className = "flex flex-col items-center gap-2 p-4 bg-white border border-stone-200 rounded-xl shadow-sm";
+        inputWrapper.innerHTML = `
+          <label class="text-sm font-medium text-stone-700">รูปที่ ${i + 1}</label>
+          <input type="file" accept="image/*" onchange="handleImageUpload(event, ${i})" class="text-sm text-stone-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 cursor-pointer">
+          <div id="preview-container-${i}" class="mt-2 hidden">
+            <img id="upload-preview-${i}" class="w-32 h-24 object-cover rounded border border-stone-200">
           </div>
-        </div>
-      `).join('');
+        `;
+        container.appendChild(inputWrapper);
+      }
+      checkUploadStatus();
+    }
 
-      document.getElementById('retake-controls').classList.remove('hidden');
+    function handleImageUpload(event, index) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          capturedImages[index] = e.target.result;
+          const imgEl = document.getElementById(`upload-preview-${index}`);
+          imgEl.src = e.target.result;
+          document.getElementById(`preview-container-${index}`).classList.remove('hidden');
+          checkUploadStatus();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function checkUploadStatus() {
+      const allUploaded = capturedImages.length === targetShotCount && capturedImages.every(img => img !== null);
+      const btn = document.getElementById('confirm-images-btn');
+      if (allUploaded) {
+        btn.classList.remove('hidden');
+      } else {
+        btn.classList.add('hidden');
+      }
     }
 
     function loadImage(src) {
@@ -482,7 +310,6 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
-      // ปรับขนาด Canvas อ้างอิงจุดต่อพิกเซลจริงของหัวพิมพ์ Xprinter XP-N160II (576px / 72mm)
       if (targetShotCount === 1) {
         canvas.width = 576;
         canvas.height = 936;
