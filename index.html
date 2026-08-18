@@ -9,13 +9,16 @@
     /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ */
     @media print {
       @page {
-        size: 80mm 224.6mm;
-        margin: 0;
+        size: 80mm 210mm;
+        margin: 0 !important;
       }
-      body {
-        margin: 0;
-        padding: 0;
+      html, body {
+        width: 80mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
         background: #fff;
+        overflow: hidden;
       }
       body * { visibility: hidden; }
       #print-area, #print-area * { visibility: visible; }
@@ -23,18 +26,23 @@
         position: fixed;
         left: 0;
         top: 0;
-        width: 80mm;
-        height: 224.6mm;
+        width: 80mm !important;
+        height: 210mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
         display: flex;
         justify-content: center;
-        align-items: flex-start;
+        align-items: center;
       }
       #final-canvas {
         width: 80mm !important;
-        height: 224.6mm !important;
-        object-fit: contain;
+        height: 210mm !important;
+        max-width: none !important;
+        max-height: none !important;
+        object-fit: fill !important;
+        display: block !important;
       }
-      #back-button-container, .bg-white { display: none !important; }
+      #back-button-container, .bg-white, #retake-controls { display: none !important; }
     }
     #webcam { transform: scaleX(-1); }
   </style>
@@ -67,7 +75,7 @@
       </button>
       <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x224.6 mm)</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x210 mm)</span>
       </button>
     </div>
   </div>
@@ -124,7 +132,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          สั่งพิมพ์ (พิมพ์ผ่านเบราว์เซอร์)
+          สั่งพิมพ์ (ผ่าน Driver เครื่องพิมพ์)
         </button>
 
         <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
@@ -150,7 +158,6 @@
     let targetShotCount = 3;
     let capturedImages = [];
     
-    // กำหนดค่าเริ่มต้นให้กับ frames ทันที ป้องกันปัญหาโหลด config.json ไม่สำเร็จ
     let frames = [
       { id: 1, name: "โปร่งใส (1 รูป)", file: "frame_1shot_1.png", shots: 1 },
       { id: 2, name: "หนังสือพิมพ์ (1 รูป)", file: "frame_1shot_2.png", shots: 1 },
@@ -181,20 +188,19 @@
 
     function updatePagePrintStyle() {
       const styleEl = document.getElementById('dynamic-print-style');
-      const canvas = document.getElementById('final-canvas');
       
-      const printWidth = canvas ? canvas.width : 1200;
-      const printHeight = canvas ? canvas.height : (targetShotCount === 1 ? 1950 : 3369);
+      const pageWidthMM = 80;
+      const pageHeightMM = targetShotCount === 1 ? 130 : 210;
 
       styleEl.innerHTML = `
         @media print {
           @page {
-            size: ${printWidth}px ${printHeight}px;
+            size: ${pageWidthMM}mm ${pageHeightMM}mm;
             margin: 0 !important;
           }
           html, body {
-            width: ${printWidth}px !important;
-            height: ${printHeight}px !important;
+            width: ${pageWidthMM}mm !important;
+            height: ${pageHeightMM}mm !important;
             margin: 0 !important;
             padding: 0 !important;
             background: #fff;
@@ -203,24 +209,26 @@
           body * { visibility: hidden; }
           #print-area, #print-area * { visibility: visible; }
           #print-area {
-            position: absolute;
+            position: fixed;
             left: 0;
             top: 0;
-            width: 100% !important;
-            height: 100% !important;
+            width: ${pageWidthMM}mm !important;
+            height: ${pageHeightMM}mm !important;
             margin: 0 !important;
             padding: 0 !important;
-            display: block;
+            display: flex;
+            justify-content: center;
+            align-items: center;
           }
           #final-canvas {
-            width: 100% !important;
-            height: 100% !important;
+            width: ${pageWidthMM}mm !important;
+            height: ${pageHeightMM}mm !important;
             max-width: none !important;
             max-height: none !important;
             object-fit: fill !important;
             display: block !important;
           }
-          #back-button-container, .bg-white { display: none !important; }
+          #back-button-container, .bg-white, #retake-controls { display: none !important; }
         }
         #webcam { transform: scaleX(-1); }
       `;
@@ -261,7 +269,7 @@
         if (targetShotCount === 1) {
           guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         } else {
-          guideBox.className = "w-full aspect-[70/55] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+          guideBox.className = "w-full aspect-[70/50] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         }
 
         if (!capturedImages[0]) {
@@ -307,7 +315,7 @@
         return;
       }
 
-      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[80/224.6]';
+      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[80/210]';
 
       container.innerHTML = filteredFrames.map(f => `
         <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
@@ -412,9 +420,9 @@
         ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
       } else {
         canvas.width = 1050;
-        canvas.height = 825;
+        canvas.height = 750;
 
-        const targetRatio = 70 / 55;
+        const targetRatio = 70 / 50;
         const videoRatio = vWidth / vHeight;
 
         let cropWidth, cropHeight, startX, startY;
@@ -519,7 +527,6 @@
           if (shotImages[0]) {
             const photoW = 1050;
             const photoH = 1350;
-
             const photoX = 75;
             const photoY = 150;
 
@@ -537,8 +544,8 @@
 
       } else {
         const scale = 15;
-        canvas.width = 80 * scale;     // 1200 px
-        canvas.height = 224.6 * scale; // 3369 px
+        canvas.width = 80 * scale;   // 1200 px
+        canvas.height = 210 * scale; // 3150 px
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -547,13 +554,13 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           const photoW = 70 * scale; // 1050 px
-          const photoH = 55 * scale; // 825 px
+          const photoH = 50 * scale; // 750 px
           const photoX = 5 * scale;  // 75 px
 
           const yPositions = [
-            14.6 * scale,                     // รูปที่ 1
-            (14.6 + 55 + 5) * scale,           // รูปที่ 2
-            (14.6 + 55 + 5 + 55 + 5) * scale   // รูปที่ 3
+            10 * scale,              // รูปที่ 1
+            (10 + 50 + 5) * scale,   // รูปที่ 2
+            (10 + 50 + 5 + 50 + 5) * scale // รูปที่ 3
           ];
 
           shotImages.forEach((img, i) => {
