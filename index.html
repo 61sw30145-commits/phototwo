@@ -6,36 +6,35 @@
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
-    /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ */
+    /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ - ปรับแต่งสำหรับ Xprinter XP-N160II */
     @media print {
       @page {
-        size: 80mm 130mm;
+        size: 80mm auto;
         margin: 0;
       }
-      body {
-        margin: 0;
-        padding: 0;
-        background: #fff;
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        width: 100% !important;
       }
       body * { visibility: hidden; }
       #print-area, #print-area * { visibility: visible; }
       #print-area {
-        position: fixed;
+        position: absolute;
         left: 0;
         top: 0;
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
+        width: 72mm !important; /* พื้นที่พิมพ์จริงของหัวพิมพ์ 80mm */
+        margin: 0 auto;
+        display: block;
       }
       #final-canvas {
         width: 100% !important;
         height: auto !important;
-        max-height: 100vh;
-        object-fit: contain;
+        display: block;
+        margin: 0 auto;
       }
-      #back-button-container { display: none !important; }
+      #back-button-container, .bg-white { display: none !important; }
     }
     #webcam { transform: scaleX(-1); }
   </style>
@@ -101,7 +100,7 @@
     </div>
   </div>
 
-  <!-- Step 4: สั่งพิมพ์ -->
+  <!-- Step 4: สั่งปริ้นท์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
     
@@ -125,7 +124,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          สั่งปพิมพ์
+          สั่งปริ้นท์ (ระบบปกติ)
         </button>
 
         <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
@@ -175,34 +174,33 @@
 
     function updatePagePrintStyle() {
       const styleEl = document.getElementById('dynamic-print-style');
-      const height = targetShotCount === 1 ? '130mm' : '213mm';
       styleEl.innerHTML = `
         @media print {
           @page {
-            size: 80mm ${height};
+            size: 80mm auto;
             margin: 0;
           }
-          body {
-            margin: 0;
-            padding: 0;
-            background: #fff;
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            width: 100% !important;
           }
           body * { visibility: hidden; }
           #print-area, #print-area * { visibility: visible; }
           #print-area {
-            position: fixed;
+            position: absolute;
             left: 0;
             top: 0;
-            width: 80mm;
-            height: ${height};
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            width: 72mm !important;
+            margin: 0 auto;
+            display: block;
           }
           #final-canvas {
-            width: 80mm !important;
-            height: ${height} !important;
-            object-fit: contain;
+            width: 100% !important;
+            height: auto !important;
+            display: block;
+            margin: 0 auto;
           }
           #back-button-container, .bg-white { display: none !important; }
         }
@@ -366,10 +364,10 @@
       const vHeight = video.videoHeight;
 
       if (targetShotCount === 1) {
-        canvas.width = 1050;
-        canvas.height = 1350;
+        canvas.width = 576;
+        canvas.height = 740;
 
-        const targetRatio = 1050 / 1350;
+        const targetRatio = 576 / 740;
         const videoRatio = vWidth / vHeight;
 
         let cropWidth, cropHeight, startX, startY;
@@ -391,10 +389,10 @@
         ctx.scale(-1, 1);
         ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
       } else {
-        canvas.width = 700;
-        canvas.height = 550;
+        canvas.width = 576;
+        canvas.height = 452;
 
-        const targetRatio = 700 / 550;
+        const targetRatio = 576 / 452;
         const videoRatio = vWidth / vHeight;
 
         let cropWidth, cropHeight, startX, startY;
@@ -484,9 +482,10 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
+      // ปรับขนาด Canvas อ้างอิงจุดต่อพิกเซลจริงของหัวพิมพ์ Xprinter XP-N160II (576px / 72mm)
       if (targetShotCount === 1) {
-        canvas.width = 1200;
-        canvas.height = 1950;
+        canvas.width = 576;
+        canvas.height = 936;
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -495,11 +494,10 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (shotImages[0]) {
-            const photoW = 1050;
-            const photoH = 1350;
-
-            const photoX = 75;
-            const photoY = 150;
+            const photoW = 504;
+            const photoH = 648;
+            const photoX = 36;
+            const photoY = 72;
 
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
@@ -513,8 +511,8 @@
         }
 
       } else {
-        canvas.width = 1200;
-        canvas.height = 3195;
+        canvas.width = 576;
+        canvas.height = 1533;
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -523,7 +521,7 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           shotImages.forEach((img, i) => {
-            if (img) ctx.drawImage(img, 75, 150 + (i * 900), 1050, 825);
+            if (img) ctx.drawImage(img, 36, 72 + (i * 432), 504, 396);
           });
 
           if (selectedFrame) {
