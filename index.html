@@ -6,7 +6,7 @@
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
-    /* สไตล์สำหรับการพิมพ์ทั่วไปผ่านเบราว์เซอร์ */
+    /* สไตล์สำหรับการพิมพ์ผ่านเบราว์เซอร์ */
     @media print {
       @page {
         size: 80mm 130mm;
@@ -17,25 +17,29 @@
         padding: 0;
         background: #fff;
       }
-      body * { visibility: hidden; }
-      #print-area, #print-area * { visibility: visible; }
+      body * { 
+        visibility: hidden; 
+      }
+      #print-area, #print-area *, #final-canvas { 
+        visibility: visible !important; 
+      }
       #print-area {
-        position: fixed;
+        position: absolute;
         left: 0;
         top: 0;
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
+        width: 80mm;
+        height: auto;
+        display: block;
       }
       #final-canvas {
         width: 100% !important;
         height: auto !important;
-        max-height: 100vh;
+        display: block !important;
         object-fit: contain;
       }
-      #back-button-container { display: none !important; }
+      #back-button-container, .bg-white { 
+        display: none !important; 
+      }
     }
     #webcam { transform: scaleX(-1); }
   </style>
@@ -125,7 +129,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          สั่งปพิมพ์
+          สั่งพิมพ์
         </button>
 
         <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
@@ -188,24 +192,29 @@
             padding: 0;
             background: #fff;
           }
-          body * { visibility: hidden; }
-          #print-area, #print-area * { visibility: visible; }
+          body * { 
+            visibility: hidden; 
+          }
+          #print-area, #print-area *, #final-canvas { 
+            visibility: visible !important; 
+          }
           #print-area {
-            position: fixed;
+            position: absolute;
             left: 0;
             top: 0;
             width: 80mm;
-            height: ${height};
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            height: auto;
+            display: block;
           }
           #final-canvas {
-            width: 80mm !important;
-            height: ${height} !important;
+            width: 100% !important;
+            height: auto !important;
+            display: block !important;
             object-fit: contain;
           }
-          #back-button-container, .bg-white { display: none !important; }
+          #back-button-container, .bg-white { 
+            display: none !important; 
+          }
         }
         #webcam { transform: scaleX(-1); }
       `;
