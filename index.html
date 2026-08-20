@@ -9,7 +9,7 @@
     /* สไตล์สำหรับการพิมพ์ผ่านเบราว์เซอร์ */
     @media print {
       @page {
-        size: 80mm 130mm;
+        size: 70mm 210mm;
         margin: 0;
       }
       body {
@@ -27,7 +27,7 @@
         position: absolute;
         left: 0;
         top: 0;
-        width: 80mm;
+        width: 70mm;
         height: auto;
         display: block;
       }
@@ -68,11 +68,11 @@
     <div class="grid grid-cols-2 gap-4">
       <button onclick="selectShotCount(1)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">1</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 1 ช็อต (80x130 mm)</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 1 ช็อต (70x130 mm)</span>
       </button>
       <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
         <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (80x213 mm)</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (70x210 mm)</span>
       </button>
     </div>
   </div>
@@ -180,11 +180,11 @@
 
     function updatePagePrintStyle() {
       const styleEl = document.getElementById('dynamic-print-style');
-      const height = targetShotCount === 1 ? '130mm' : '213mm';
+      const height = targetShotCount === 1 ? '130mm' : '210mm';
       styleEl.innerHTML = `
         @media print {
           @page {
-            size: 80mm ${height};
+            size: 70mm ${height};
             margin: 0;
           }
           body {
@@ -202,7 +202,7 @@
             position: absolute;
             left: 0;
             top: 0;
-            width: 80mm;
+            width: 70mm;
             height: auto;
             display: block;
           }
@@ -253,9 +253,9 @@
       if (step === 3) {
         const guideBox = document.getElementById('guide-box');
         if (targetShotCount === 1) {
-          guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+          guideBox.className = "w-full aspect-[60/45] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         } else {
-          guideBox.className = "w-full aspect-[700/550] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+          guideBox.className = "w-full aspect-[60/45] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         }
 
         if (!capturedImages[0]) {
@@ -297,7 +297,7 @@
         return;
       }
 
-      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[80/213]';
+      const aspectClass = targetShotCount === 1 ? 'aspect-[70/130]' : 'aspect-[70/210]';
 
       container.innerHTML = filteredFrames.map(f => `
         <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
@@ -375,57 +375,31 @@
       const vWidth = video.videoWidth;
       const vHeight = video.videoHeight;
 
-      if (targetShotCount === 1) {
-        canvas.width = 1050;
-        canvas.height = 1350;
+      // ปรับขนาดรูปที่ถ่ายให้สอดคล้องกับขนาด 60x45 mm (อัตราส่วน 4:3)
+      canvas.width = 900;
+      canvas.height = 675;
 
-        const targetRatio = 1050 / 1350;
-        const videoRatio = vWidth / vHeight;
+      const targetRatio = 900 / 675;
+      const videoRatio = vWidth / vHeight;
 
-        let cropWidth, cropHeight, startX, startY;
+      let cropWidth, cropHeight, startX, startY;
 
-        if (videoRatio > targetRatio) {
-          cropHeight = vHeight;
-          cropWidth = vHeight * targetRatio;
-          startX = (vWidth - cropWidth) / 2;
-          startY = 0;
-        } else {
-          cropWidth = vWidth;
-          cropHeight = vWidth / targetRatio;
-          startX = 0;
-          startY = (vHeight - cropHeight) / 2;
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+      if (videoRatio > targetRatio) {
+        cropHeight = vHeight;
+        cropWidth = vHeight * targetRatio;
+        startX = (vWidth - cropWidth) / 2;
+        startY = 0;
       } else {
-        canvas.width = 700;
-        canvas.height = 550;
-
-        const targetRatio = 700 / 550;
-        const videoRatio = vWidth / vHeight;
-
-        let cropWidth, cropHeight, startX, startY;
-
-        if (videoRatio > targetRatio) {
-          cropHeight = vHeight;
-          cropWidth = vHeight * targetRatio;
-          startX = (vWidth - cropWidth) / 2;
-          startY = 0;
-        } else {
-          cropWidth = vWidth;
-          cropHeight = vWidth / targetRatio;
-          startX = 0;
-          startY = (vHeight - cropHeight) / 2;
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+        cropWidth = vWidth;
+        cropHeight = vWidth / targetRatio;
+        startX = 0;
+        startY = (vHeight - cropHeight) / 2;
       }
+
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
 
       capturedImages[index] = canvas.toDataURL('image/png');
     }
@@ -470,7 +444,7 @@
       const previewContainer = document.getElementById('shots-preview');
       previewContainer.innerHTML = capturedImages.map((img, i) => `
         <div class="relative cursor-pointer border-2 border-stone-300 hover:border-stone-800 rounded overflow-hidden group" onclick="retakeSingleShot(${i})">
-          <img src="${img}" class="w-20 h-16 object-cover">
+          <img src="${img}" class="w-20 h-15 object-cover">
           <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-90 transition">
             <span class="text-white text-[11px] font-medium bg-black/60 px-1.5 py-0.5 rounded">ถ่ายใหม่</span>
           </div>
@@ -494,9 +468,14 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
+      // กำหนดมาตราส่วน 1mm = 15px
+      const photoW = 900;  // 60mm * 15
+      const photoH = 675;  // 45mm * 15
+      const photoX = 73.5; // 4.9mm * 15
+
       if (targetShotCount === 1) {
-        canvas.width = 1200;
-        canvas.height = 1950;
+        canvas.width = 1050;  // 70mm * 15
+        canvas.height = 1950; // 130mm * 15
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -505,12 +484,7 @@
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (shotImages[0]) {
-            const photoW = 1050;
-            const photoH = 1350;
-
-            const photoX = 75;
-            const photoY = 150;
-
+            const photoY = 285; // 19mm * 15
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
 
@@ -523,8 +497,8 @@
         }
 
       } else {
-        canvas.width = 1200;
-        canvas.height = 3195;
+        canvas.width = 1050;  // 70mm * 15
+        canvas.height = 3150; // 210mm * 15
 
         ctx.fillStyle = "#FFFFFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -532,8 +506,14 @@
         try {
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
+          // ตำแหน่งแกน Y คำนวณตามระยะห่าง (mm * 15)
+          // ช่องที่ 1: Top 19mm (285px)
+          // ช่องที่ 2: Top 19 + 45 + 5 = 69mm (1035px)
+          // ช่องที่ 3: Top 69 + 45 + 5 = 119mm (1785px)
+          const yPositions = [285, 1035, 1785];
+
           shotImages.forEach((img, i) => {
-            if (img) ctx.drawImage(img, 75, 150 + (i * 900), 1050, 825);
+            if (img) ctx.drawImage(img, photoX, yPositions[i], photoW, photoH);
           });
 
           if (selectedFrame) {
