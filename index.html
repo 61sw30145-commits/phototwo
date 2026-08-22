@@ -514,10 +514,8 @@
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
 
-          // ประมวลผลรูปถ่ายให้เป็นขาวดำสไตล์ใบเสร็จก่อนใส่วางกรอบ
           applyThermalFilter(ctx, canvas.width, canvas.height);
 
-          // ซ้อนกรอบ PNG ด้านบนโดยไม่โดนตัวกรองฟิลเตอร์
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -545,10 +543,8 @@
             if (img) ctx.drawImage(img, photoX, topYs[i], photoW, photoH);
           });
 
-          // ประมวลผลรูปถ่ายให้เป็นขาวดำสไตล์ใบเสร็จก่อนใส่วางกรอบ
           applyThermalFilter(ctx, canvas.width, canvas.height);
 
-          // ซ้อนกรอบ PNG ด้านบนโดยไม่โดนตัวกรองฟิลเตอร์
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -559,19 +555,19 @@
       }
     }
 
-    // ฟังก์ชัน Floyd-Steinberg Dithering แบบสว่างปกติ (ไม่กลับสี)
+    // ฟังก์ชันปรับภาพขาวดำแบบละมุน สมจริง ชัดเจน และไม่มืดปื้น
     function applyThermalFilter(ctx, width, height) {
       const imgData = ctx.getImageData(0, 0, width, height);
       const data = imgData.data;
 
-      const brightness = 10;
-      const contrast = 1.2;
+      const brightness = 35;
+      const contrast = 1.15;
       const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - (contrast * 255)));
 
       const grayBuf = new Float32Array(width * height);
 
       for (let i = 0; i < data.length; i += 4) {
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        let gray = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
         gray = factor * (gray + brightness - 128) + 128;
         grayBuf[i / 4] = Math.max(0, Math.min(255, gray));
       }
