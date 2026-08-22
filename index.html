@@ -6,7 +6,6 @@
   <title>Minimal Photo Booth</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
-    /* สไตล์สำหรับการพิมพ์ผ่านเบราว์เซอร์ */
     @media print {
       @page {
         size: 70mm 210mm;
@@ -113,7 +112,6 @@
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
 
-    <!-- แผงตั้งค่าการพิมพ์ -->
     <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
       <div class="flex items-center justify-between text-sm">
         <label for="print-copies" class="font-medium text-stone-700">จำนวนที่ต้องการพิมพ์:</label>
@@ -369,39 +367,36 @@
       }, 1000);
     }
 
-    // ฟังก์ชันทำ Floyd-Steinberg Dithering เพิ่มเติม
     function applyDithering(ctx, width, height) {
       const imgData = ctx.getImageData(0, 0, width, height);
       const d = imgData.data;
 
+      const bayer8x8 = [
+        [ 0, 32,  8, 40,  2, 34, 10, 42],
+        [48, 16, 56, 24, 50, 18, 58, 26],
+        [12, 44,  4, 36, 14, 46,  6, 38],
+        [60, 28, 52, 20, 62, 30, 54, 22],
+        [ 3, 35, 11, 43,  1, 33,  9, 41],
+        [51, 19, 59, 27, 49, 17, 57, 25],
+        [15, 47,  7, 39, 13, 45,  5, 37],
+        [63, 31, 55, 23, 61, 29, 53, 21]
+      ];
+
+      const gamma = 1.8;           
+      const shadowLift = 35;       
+
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           let i = (y * width + x) * 4;
-          // แปลงเป็น Grayscale + ปรับสว่างขึ้นเล็กน้อยเพื่อดึงรายละเอียดเงามืด
+
           let gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-          gray = Math.min(255, gray * 1.15); // ปรับเพิ่มความสว่าง 15%
+          gray = 255 * Math.pow(gray / 255, 1 / gamma);
+          gray = shadowLift + (gray * (255 - shadowLift) / 255);
 
-          let newPixel = gray < 128 ? 0 : 255;
-          let err = gray - newPixel;
+          let matrixValue = (bayer8x8[y % 8][x % 8] / 64) * 255;
+          let val = gray > matrixValue ? 255 : 0;
 
-          d[i] = d[i + 1] = d[i + 2] = newPixel;
-
-          // กระจาย error ไปยังพิกเซลข้างเคียง
-          let distribute = (xOffset, yOffset, factor) => {
-            let nx = x + xOffset;
-            let ny = y + yOffset;
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-              let ni = (ny * width + nx) * 4;
-              let nGray = 0.299 * d[ni] + 0.587 * d[ni + 1] + 0.114 * d[ni + 2];
-              nGray = Math.max(0, Math.min(255, nGray + err * factor));
-              d[ni] = d[ni + 1] = d[ni + 2] = nGray;
-            }
-          };
-
-          distribute(1, 0, 7 / 16);
-          distribute(-1, 1, 3 / 16);
-          distribute(0, 1, 5 / 16);
-          distribute(1, 1, 1 / 16);
+          d[i] = d[i + 1] = d[i + 2] = val;
         }
       }
       ctx.putImageData(imgData, 0, 0);
@@ -444,7 +439,6 @@
       ctx.scale(-1, 1);
       ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
 
-      // เรียกใช้งาน Dithering แปลงเป็นจุดไล่เฉดสี
       applyDithering(ctx, canvas.width, canvas.height);
 
       capturedImages[index] = canvas.toDataURL('image/png');
@@ -527,7 +521,6 @@
           if (shotImages[0]) {
             const photoW = 1050;
             const photoH = 1350;
-
             const photoX = 75;
             const photoY = 150;
 
