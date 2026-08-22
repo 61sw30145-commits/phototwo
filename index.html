@@ -514,7 +514,6 @@
             ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
 
-          // ปรับแต่งภาพให้เหมาะกับเครื่องพิมพ์ความร้อน
           applyThermalFilter(ctx, canvas.width, canvas.height);
 
           if (selectedFrame) {
@@ -544,7 +543,6 @@
             if (img) ctx.drawImage(img, photoX, topYs[i], photoW, photoH);
           });
 
-          // ปรับแต่งภาพให้เหมาะกับเครื่องพิมพ์ความร้อน
           applyThermalFilter(ctx, canvas.width, canvas.height);
 
           if (selectedFrame) {
@@ -557,56 +555,46 @@
       }
     }
 
-    // ฟังก์ชันสำหรับแปลงรูปเป็นขาวดำแบบจุด (Floyd-Steinberg Dithering)
+    // ฟังก์ชันประมวลผลรูปภาพสำหรับเครื่องพิมพ์ความร้อนแบบ Ordered Dithering (Bayer Matrix 8x8)
     function applyThermalFilter(ctx, width, height) {
       const imgData = ctx.getImageData(0, 0, width, height);
       const data = imgData.data;
 
-      const brightness = 30; // ปรับความสว่างขึ้นเพื่อดึงส่วนมืด
-      const contrast = 1.2;   // ปรับคอนทราสต์
+      const bayerMatrix8x8 = [
+        [ 0, 32,  8, 40,  2, 34, 10, 42],
+        [48, 16, 56, 24, 50, 18, 58, 26],
+        [12, 44,  4, 36, 14, 46,  6, 38],
+        [60, 28, 52, 20, 62, 30, 54, 22],
+        [ 3, 35, 11, 43,  1, 33,  9, 41],
+        [51, 19, 59, 27, 49, 17, 57, 25],
+        [15, 47,  7, 39, 13, 45,  5, 37],
+        [63, 31, 55, 23, 61, 29, 53, 21]
+      ];
+
+      const brightness = 20; 
+      const contrast = 1.3;   
       const factor = (259 * (contrast * 255 + 255)) / (255 * (259 - (contrast * 255)));
 
-      // Step 1: แปลงเป็น Grayscale และปรับ Brightness/Contrast
-      for (let i = 0; i < data.length; i += 4) {
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        gray = factor * (gray + brightness - 128) + 128;
-        gray = Math.max(0, Math.min(255, gray));
-
-        data[i] = gray;
-        data[i + 1] = gray;
-        data[i + 2] = gray;
-      }
-
-      // Step 2: Floyd-Steinberg Dithering
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const idx = (y * width + x) * 4;
-          const oldPixel = data[idx];
-          const newPixel = oldPixel < 128 ? 0 : 255;
-          
-          data[idx] = newPixel;
-          data[idx + 1] = newPixel;
-          data[idx + 2] = newPixel;
 
-          const quantError = oldPixel - newPixel;
+          let gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+          gray = factor * (gray + brightness - 128) + 128;
+          gray = Math.max(0, Math.min(255, gray));
 
-          distributeError(data, width, height, x + 1, y, quantError * (7 / 16));
-          distributeError(data, width, height, x - 1, y + 1, quantError * (3 / 16));
-          distributeError(data, width, height, x, y + 1, quantError * (5 / 16));
-          distributeError(data, width, height, x + 1, y + 1, quantError * (1 / 16));
+          const matrixValue = bayerMatrix8x8[y % 8][x % 8];
+          const threshold = (matrixValue + 0.5) * (255 / 64);
+
+          const color = gray > threshold ? 255 : 0;
+
+          data[idx] = color;
+          data[idx + 1] = color;
+          data[idx + 2] = color;
         }
       }
 
       ctx.putImageData(imgData, 0, 0);
-    }
-
-    function distributeError(data, width, height, x, y, error) {
-      if (x < 0 || x >= width || y < 0 || y >= height) return;
-      const idx = (y * width + x) * 4;
-      const val = data[idx] + error;
-      data[idx] = val;
-      data[idx + 1] = val;
-      data[idx + 2] = val;
     }
 
     function adjustCopies(delta) {
