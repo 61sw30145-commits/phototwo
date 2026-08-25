@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Booth - Large Dot Dithering Edition</title>
+  <title>Photo Booth - Fine Dot Photo Dithering Edition</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
     @media print {
@@ -444,13 +444,17 @@
       });
     }
 
-    // Bayer Dithering แบบขยายบล็อกขนาดจุด 2x2 พิกเซล เพื่อความคมชัดสูง
-    function applyDitheringToCanvas(canvas) {
+    // Bayer Dithering จุดขนาด 1px สบายตา ทำความสะอาดเฉพาะในพื้นที่รูปถ่าย
+    function applyDitheringToCanvas(canvas, targetShotCount) {
       const ctx = canvas.getContext('2d');
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const d = imgData.data;
-      const w = canvas.width;
-      const h = canvas.height;
+      
+      const regions = [];
+      if (targetShotCount === 1) {
+        regions.push({ x: 75, y: 150, w: 1050, h: 1350 });
+      } else {
+        const topYs = [375, 1125, 1875];
+        topYs.forEach(y => regions.push({ x: 73.5, y: y, w: 900, h: 675 }));
+      }
 
       const bayerMatrix4x4 = [
         [ 0,  8,  2, 10],
@@ -459,31 +463,38 @@
         [15,  7, 13,  5]
       ];
 
-      // ขนาดของจุด (Block Size): ปรับเป็น 2 พิกเซลเพื่อเพิ่มขนาดจุดสกรีน
-      const blockSize = 2; 
+      const blockSize = 1; 
 
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const idx = (y * w + x) * 4;
-          
-          // คำนวณความสว่าง
-          const gray = d[idx] * 0.299 + d[idx + 1] * 0.587 + d[idx + 2] * 0.114;
-          
-          // สเกลตำแหน่งพิกเซลตามขนาดบล็อก เพื่อขยายลายจุด
-          const matrixX = Math.floor(x / blockSize) % 4;
-          const matrixY = Math.floor(y / blockSize) % 4;
-          const threshold = ((bayerMatrix4x4[matrixY][matrixX] + 0.5) / 16) * 255;
+      regions.forEach(r => {
+        const rx = Math.round(r.x);
+        const ry = Math.round(r.y);
+        const rw = Math.round(r.w);
+        const rh = Math.round(r.h);
 
-          const val = gray < threshold ? 0 : 255;
+        const imgData = ctx.getImageData(rx, ry, rw, rh);
+        const d = imgData.data;
 
-          d[idx]     = val;
-          d[idx + 1] = val;
-          d[idx + 2] = val;
-          d[idx + 3] = 255;
+        for (let y = 0; y < rh; y++) {
+          for (let x = 0; x < rw; x++) {
+            const idx = (y * rw + x) * 4;
+
+            const gray = d[idx] * 0.299 + d[idx + 1] * 0.587 + d[idx + 2] * 0.114;
+
+            const matrixX = Math.floor(x / blockSize) % 4;
+            const matrixY = Math.floor(y / blockSize) % 4;
+            const threshold = ((bayerMatrix4x4[matrixY][matrixX] + 0.5) / 16) * 255;
+
+            const val = gray < threshold ? 0 : 255;
+
+            d[idx]     = val;
+            d[idx + 1] = val;
+            d[idx + 2] = val;
+            d[idx + 3] = 255;
+          }
         }
-      }
 
-      ctx.putImageData(imgData, 0, 0);
+        ctx.putImageData(imgData, rx, ry);
+      });
     }
 
     async function renderFinalCanvas() {
@@ -499,9 +510,15 @@
 
         try {
           const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
+          
           if (shotImages[0]) {
             ctx.drawImage(shotImages[0], 75, 150, 1050, 1350);
           }
+
+          // ประมวลผลจุดสกรีนเฉพาะรูปภาพ
+          applyDitheringToCanvas(canvas, targetShotCount);
+
+          // วาดกรอบรูปทับลงไป (คงสภาพกรอบรูปเดิม ไม่โดน Dither)
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -524,6 +541,10 @@
             if (img) ctx.drawImage(img, 73.5, topYs[i], 900, 675);
           });
 
+          // ประมวลผลจุดสกรีนเฉพาะรูปภาพทั้ง 3 ช็อต
+          applyDitheringToCanvas(canvas, targetShotCount);
+
+          // วาดกรอบรูปทับลงไป (คงสภาพกรอบรูปเดิม ไม่โดน Dither)
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -532,9 +553,6 @@
           console.error("Render canvas failed:", err);
         }
       }
-
-      // ปรับภาพให้กลายเป็นจุดสกรีนขนาดใหญ่ ชัดเจน
-      applyDitheringToCanvas(canvas);
     }
 
     function adjustCopies(delta) {
