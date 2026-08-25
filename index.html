@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Booth - Thermal Dithering Edition</title>
+  <title>Photo Booth - Large Dot Dithering Edition</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
     @media print {
@@ -159,7 +159,6 @@
     let mediaStream = null;
     let serialPort = null;
 
-    // โหลดไฟล์ตั้งค่ากรอบรูป
     async function loadConfig() {
       try {
         const res = await fetch('config.json');
@@ -445,7 +444,7 @@
       });
     }
 
-    // อัลกอริทึม Floyd-Steinberg Dithering สำหรับแปลงภาพบน Canvas
+    // Bayer Dithering แบบขยายบล็อกขนาดจุด 2x2 พิกเซล เพื่อความคมชัดสูง
     function applyDitheringToCanvas(canvas) {
       const ctx = canvas.getContext('2d');
       const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -453,40 +452,35 @@
       const w = canvas.width;
       const h = canvas.height;
 
-      // 1. แปลงพิกเซลเป็นความสว่าง (Grayscale)
-      const gray = new Float32Array(w * h);
-      for (let i = 0; i < gray.length; i++) {
-        const idx = i * 4;
-        gray[i] = d[idx] * 0.299 + d[idx + 1] * 0.587 + d[idx + 2] * 0.114;
-      }
+      const bayerMatrix4x4 = [
+        [ 0,  8,  2, 10],
+        [12,  4, 14,  6],
+        [ 3, 11,  1,  9],
+        [15,  7, 13,  5]
+      ];
 
-      // 2. คำนวณ Error Diffusion (Floyd-Steinberg)
+      // ขนาดของจุด (Block Size): ปรับเป็น 2 พิกเซลเพื่อเพิ่มขนาดจุดสกรีน
+      const blockSize = 2; 
+
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
-          const idx = y * w + x;
-          const oldVal = gray[idx];
-          const newVal = oldVal < 128 ? 0 : 255;
-          gray[idx] = newVal;
+          const idx = (y * w + x) * 4;
           
-          const err = oldVal - newVal;
+          // คำนวณความสว่าง
+          const gray = d[idx] * 0.299 + d[idx + 1] * 0.587 + d[idx + 2] * 0.114;
+          
+          // สเกลตำแหน่งพิกเซลตามขนาดบล็อก เพื่อขยายลายจุด
+          const matrixX = Math.floor(x / blockSize) % 4;
+          const matrixY = Math.floor(y / blockSize) % 4;
+          const threshold = ((bayerMatrix4x4[matrixY][matrixX] + 0.5) / 16) * 255;
 
-          if (x + 1 < w)         gray[idx + 1]     += err * (7 / 16);
-          if (y + 1 < h) {
-            if (x > 0)           gray[idx + w - 1] += err * (3 / 16);
-                                 gray[idx + w]     += err * (5 / 16);
-            if (x + 1 < w)       gray[idx + w + 1] += err * (1 / 16);
-          }
+          const val = gray < threshold ? 0 : 255;
+
+          d[idx]     = val;
+          d[idx + 1] = val;
+          d[idx + 2] = val;
+          d[idx + 3] = 255;
         }
-      }
-
-      // 3. ใส่ค่าวัดสกรีนกลับลง Canvas
-      for (let i = 0; i < gray.length; i++) {
-        const val = gray[i];
-        const idx = i * 4;
-        d[idx]     = val;
-        d[idx + 1] = val;
-        d[idx + 2] = val;
-        d[idx + 3] = 255;
       }
 
       ctx.putImageData(imgData, 0, 0);
@@ -539,7 +533,7 @@
         }
       }
 
-      // ทำ Dithering เพื่อสร้างลายจุดสกรีนให้เห็นรายละเอียดภาพชัดเจน
+      // ปรับภาพให้กลายเป็นจุดสกรีนขนาดใหญ่ ชัดเจน
       applyDitheringToCanvas(canvas);
     }
 
@@ -583,7 +577,6 @@
       }
     }
 
-    // ฟังก์ชันสั่งพิมพ์ข้อมูล Raw BITMAP Direct ไปยังเครื่องพิมพ์ผ่าน Web Serial API
     async function printDirectSerial() {
       if (!('serial' in navigator)) {
         alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge บน Desktop");
@@ -602,7 +595,6 @@
         const copies = parseInt(document.getElementById('print-copies').value) || 1;
         const canvas = document.getElementById('final-canvas');
 
-        // สเกลความกว้างรูปให้ตรงกับหัวพิมพ์ 80mm (576px)
         const targetWidth = 576;
         const scale = targetWidth / canvas.width;
         const targetHeight = Math.round(canvas.height * scale);
@@ -622,7 +614,6 @@
         for (let y = 0; y < targetHeight; y++) {
           for (let x = 0; x < targetWidth; x++) {
             const idx = (y * targetWidth + x) * 4;
-            // ค่าที่ประมวลผลเป็น Dithering แล้ว (ดำ=0, ขาว=255)
             if (d[idx] < 128) {
               const byteIdx = y * widthBytes + (x >> 3);
               const bitIdx = 7 - (x % 8);
@@ -632,10 +623,8 @@
         }
 
         for (let c = 0; c < copies; c++) {
-          // รีเซ็ตเครื่องพิมพ์ ESC @
           await writer.write(new Uint8Array([0x1B, 0x40]));
 
-          // คำสั่ง Raster Bitmap (GS v 0)
           const xL = widthBytes & 0xFF;
           const xH = (widthBytes >> 8) & 0xFF;
           const yL = targetHeight & 0xFF;
@@ -644,7 +633,6 @@
           const header = new Uint8Array([0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
           await writer.write(header);
 
-          // ส่งข้อมูลทีละ 512 บายต์ เพื่อป้องกัน Serial Buffer ล้น
           const chunkSize = 512;
           for (let i = 0; i < bitmap.length; i += chunkSize) {
             const chunk = bitmap.subarray(i, i + chunkSize);
@@ -652,7 +640,6 @@
             await new Promise(r => setTimeout(r, 2));
           }
 
-          // เลื่อนกระดาษและสั่งตัด (Cut)
           await writer.write(new Uint8Array([0x1B, 0x64, 0x05]));
           await writer.write(new Uint8Array([0x1D, 0x56, 0x42, 0x00]));
         }
