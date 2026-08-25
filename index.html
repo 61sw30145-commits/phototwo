@@ -1,140 +1,624 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thermal Photo Booth - Dithering</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* ซ่อน UI ทั้งหมดเวลาสั่งพิมพ์ ออกเฉพาะพื้นที่ Canvas สด */
-        @media print {
-            body * {
-                visibility: hidden;
-            }
-            #printArea, #printArea * {
-                visibility: visible;
-            }
-            #printArea {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minimal Photo Booth</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style id="dynamic-print-style">
+    /* สไตล์สำหรับการพิมพ์ผ่านเบราว์เซอร์ */
+    @media print {
+      @page {
+        size: 70mm 210mm;
+        margin: 0;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+      body * { 
+        visibility: hidden; 
+      }
+      #print-area, #print-area *, #final-canvas { 
+        visibility: visible !important; 
+      }
+      #print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 70mm;
+        height: auto;
+        display: block;
+      }
+      #final-canvas {
+        width: 100% !important;
+        height: auto !important;
+        display: block !important;
+        object-fit: contain;
+      }
+      #back-button-container, .bg-white { 
+        display: none !important; 
+      }
+    }
+    #webcam { transform: scaleX(-1); }
+  </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-6">
+<body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
 
-    <h1 class="text-2xl font-bold mb-4 text-emerald-400">Thermal Receipt Photo Booth</h1>
+  <!-- ปุ่มย้อนกลับ -->
+  <div id="back-button-container" class="absolute top-6 left-6 hidden">
+    <button onclick="goBack()" class="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-full shadow-sm hover:border-stone-800 transition text-sm font-medium text-stone-700">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      ย้อนกลับ
+    </button>
+  </div>
 
-    <div class="flex flex-col md:flex-row gap-6 items-center justify-center w-full max-w-4xl">
-        <!-- ฝั่งกล้อง Live View -->
-        <div class="flex flex-col items-center bg-gray-800 p-4 rounded-xl shadow-lg">
-            <h2 class="text-lg font-semibold mb-2">1. ส่องกล้อง / ถ่ายภาพ</h2>
-            <video id="webcam" autoplay playsinline class="w-[320px] h-[240px] bg-black rounded-lg object-cover mb-4 scale-x-[-1]"></video>
-            <button id="snapBtn" class="bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-2 px-6 rounded-full shadow-md transition">
-                📸 ถ่ายรูป
-            </button>
+  <!-- Step 1: หน้าแรก -->
+  <div id="step-1" class="text-center space-y-6">
+    <h1 class="text-4xl font-light tracking-wide">PHOTO BOOTH</h1>
+    <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
+  </div>
+
+  <!-- Step 1.5: เลือกจำนวนช็อต -->
+  <div id="step-15" class="hidden text-center space-y-6 w-full max-w-md">
+    <h2 class="text-2xl font-light">เลือกจำนวนช็อต</h2>
+    <div class="grid grid-cols-2 gap-4">
+      <button onclick="selectShotCount(1)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
+        <span class="text-3xl font-light group-hover:scale-110 transition">1</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 1 ช็อต (80x130 mm)</span>
+      </button>
+      <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
+        <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (70x210 mm)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: เลือกกรอบรูป -->
+  <div id="step-2" class="hidden text-center space-y-6 w-full max-w-lg">
+    <h2 class="text-2xl font-light">เลือกกรอบรูป</h2>
+    <div id="frame-list" class="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto p-2"></div>
+  </div>
+
+  <!-- Step 3: กล้อง & เลือกแก้ไขรูป -->
+  <div id="step-3" class="hidden text-center space-y-4 w-full max-w-md">
+    <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
+      <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
+
+      <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+        <div id="guide-box" class="border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
+          <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
         </div>
+      </div>
 
-        <!-- ฝั่งพรีวิวรูปพิมพ์ (Dithered Output) -->
-        <div class="flex flex-col items-center bg-gray-800 p-4 rounded-xl shadow-lg">
-            <h2 class="text-lg font-semibold mb-2">2. พรีวิวภาพพิมพ์ (Dithered)</h2>
-            <div id="printArea" class="bg-white p-2 rounded flex justify-center">
-                <!-- ขนาด Canvas ตั้งไว้ที่ 384px (มาตรฐานหัวพิมพ์ 58mm / 203 DPI) -->
-                <canvas id="photoCanvas" width="384" height="512" class="border border-gray-300"></canvas>
-            </div>
-            <button id="printBtn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-full shadow-md transition">
-                🖨️ สั่งพิมพ์ (Print)
-            </button>
-        </div>
+      <img id="shot-preview-overlay" class="absolute inset-0 w-full h-full object-contain hidden z-20" />
+      <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white bg-black/40 hidden z-30">3</div>
+    </div>
+    
+    <div id="retake-controls" class="hidden space-y-3">
+      <p class="text-sm font-medium text-stone-700">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้น:</p>
+      <div id="shots-preview" class="flex justify-center gap-2"></div>
+      <button onclick="goToStep(4)" class="px-6 py-2 bg-stone-800 text-white rounded-full">ยืนยันรูปภาพ</button>
+    </div>
+  </div>
+
+  <!-- Step 4: สั่งพิมพ์ -->
+  <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
+    <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
+    
+    <div id="print-area" class="flex justify-center">
+      <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
 
-    <script>
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('photoCanvas');
+    <!-- แผงตั้งค่าการพิมพ์ -->
+    <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
+      <div class="flex items-center justify-between text-sm">
+        <label for="print-copies" class="font-medium text-stone-700">จำนวนที่ต้องการพิมพ์:</label>
+        <div class="flex items-center border border-stone-300 rounded-lg overflow-hidden">
+          <button onclick="adjustCopies(-1)" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700">-</button>
+          <input type="number" id="print-copies" value="1" min="1" max="10" class="w-12 text-center py-1 focus:outline-none text-stone-800 font-medium">
+          <button onclick="adjustCopies(1)" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700">+</button>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2 pt-2 border-t border-stone-100">
+        <button onclick="triggerPrint()" class="w-full py-2.5 bg-stone-800 text-white rounded-xl hover:bg-stone-700 transition font-medium flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          สั่งพิมพ์
+        </button>
+
+        <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
+          🔌 เลือกเครื่องพิมพ์โดยตรง (USB/Serial Thermal Printer)
+        </button>
+
+        <button onclick="downloadImage()" class="w-full py-2 bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 rounded-xl transition font-medium text-sm flex items-center justify-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          บันทึกรูปภาพลงเครื่อง (.jpg)
+        </button>
+      </div>
+    </div>
+
+    <button onclick="goToStep(3)" class="text-sm text-stone-500 hover:text-stone-800 underline">แก้ไข/ถ่ายใหม่</button>
+  </div>
+
+  <script>
+    let currentStep = 1;
+    let stepHistory = [1];
+    let selectedFrame = null;
+    let targetShotCount = 3;
+    let capturedImages = [];
+    let frames = [];
+    let captureTimer = null;
+    let isCapturing = false;
+    let mediaStream = null;
+    let serialPort = null;
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('config.json');
+        const config = await res.json();
+        frames = config.frames || [];
+      } catch (e) {
+        frames = [
+          { id: 1, name: "โปร่งใส (1 รูป)", file: "frame_1shot_1.png", shots: 1 },
+          { id: 2, name: "หนังสือพิมพ์ (1 รูป)", file: "frame_1shot_2.png", shots: 1 },
+          { id: 3, name: "โปร่งใส (3 รูป)", file: "frame1.png", shots: 3 },
+          { id: 4, name: "ใบเสร็จ (3 รูป)", file: "frame2.png", shots: 3 },
+          { id: 5, name: "บัวหลวงใหญ่ (3 รูป)", file: "frame3.png", shots: 3 },
+          { id: 6, name: "โหมดดาร์ก (3 รูป)", file: "frame4.png", shots: 3 }
+        ];
+      }
+    }
+    loadConfig();
+
+    function updatePagePrintStyle() {
+      const styleEl = document.getElementById('dynamic-print-style');
+      const height = targetShotCount === 1 ? '130mm' : '210mm';
+      const width = targetShotCount === 1 ? '80mm' : '70mm';
+      styleEl.innerHTML = `
+        @media print {
+          @page {
+            size: ${width} ${height};
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+          }
+          body * { 
+            visibility: hidden; 
+          }
+          #print-area, #print-area *, #final-canvas { 
+            visibility: visible !important; 
+          }
+          #print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: ${width};
+            height: auto;
+            display: block;
+          }
+          #final-canvas {
+            width: 100% !important;
+            height: auto !important;
+            display: block !important;
+            object-fit: contain;
+          }
+          #back-button-container, .bg-white { 
+            display: none !important; 
+          }
+        }
+        #webcam { transform: scaleX(-1); }
+      `;
+    }
+
+    function selectShotCount(count) {
+      targetShotCount = count;
+      capturedImages = new Array(count).fill(null);
+      updatePagePrintStyle();
+      goToStep(2);
+    }
+
+    function goToStep(step, isBack = false) {
+      if (isCapturing) stopCapture();
+
+      if (currentStep === 3 && step !== 3) {
+        stopCamera();
+      }
+
+      document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`step-${step}`).classList.remove('hidden');
+
+      if (!isBack && currentStep !== step) {
+        stepHistory.push(step);
+      }
+      currentStep = step;
+
+      const backBtn = document.getElementById('back-button-container');
+      if (step === 1) {
+        backBtn.classList.add('hidden');
+      } else {
+        backBtn.classList.remove('hidden');
+      }
+
+      if (step === 2) renderFrames();
+      if (step === 3) {
+        const guideBox = document.getElementById('guide-box');
+        if (targetShotCount === 1) {
+          guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+        } else {
+          guideBox.className = "w-full aspect-[60/45] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
+        }
+
+        if (!capturedImages[0]) {
+          startCameraAndCapture();
+        } else {
+          showRetakeUI();
+        }
+      }
+      if (step === 4) renderFinalCanvas();
+    }
+
+    function goBack() {
+      if (stepHistory.length > 1) {
+        stepHistory.pop();
+        const prevStep = stepHistory[stepHistory.length - 1];
+        goToStep(prevStep, true);
+      }
+    }
+
+    function stopCapture() {
+      isCapturing = false;
+      if (captureTimer) clearInterval(captureTimer);
+      document.getElementById('countdown').classList.add('hidden');
+    }
+
+    function stopCamera() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+    }
+
+    function renderFrames() {
+      const container = document.getElementById('frame-list');
+      const filteredFrames = frames.filter(f => f.shots === targetShotCount);
+
+      if (filteredFrames.length === 0) {
+        container.innerHTML = `<p class="col-span-2 text-stone-500 py-8">ไม่พบกรอบรูปสำหรับ ${targetShotCount} ช็อต</p>`;
+        return;
+      }
+
+      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[70/210]';
+
+      container.innerHTML = filteredFrames.map(f => `
+        <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
+          <div class="w-full ${aspectClass} bg-stone-100 rounded-lg overflow-hidden flex items-center justify-center p-1 border border-stone-100 relative">
+            <img src="${f.file}" alt="${f.name}" class="w-full h-full object-contain group-hover:scale-105 transition duration-200 z-10" onerror="this.src='https://via.placeholder.com/150?text=No+Preview'">
+          </div>
+          <p class="text-sm font-medium text-stone-700 group-hover:text-stone-900">${f.name}</p>
+        </div>
+      `).join('');
+    }
+
+    function selectFrame(file) {
+      selectedFrame = file;
+      goToStep(3);
+    }
+
+    async function startCameraAndCapture() {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
+          audio: false 
+        });
+        document.getElementById('webcam').srcObject = mediaStream;
+        document.getElementById('retake-controls').classList.add('hidden');
+        document.getElementById('camera-guide').classList.remove('hidden');
+        
+        setTimeout(() => {
+          capturedImages = new Array(targetShotCount).fill(null);
+          isCapturing = true;
+          captureNext(0);
+        }, 1000);
+      } catch (err) {
+        alert("ไม่สามารถเข้าถึงกล้องได้ กรุณ่อนุญาตสิทธิ์การใช้กล้อง");
+      }
+    }
+
+    function captureNext(index) {
+      if (!isCapturing || index >= targetShotCount) {
+        showRetakeUI();
+        return;
+      }
+
+      document.getElementById('shot-preview-overlay').classList.add('hidden');
+
+      let count = 3;
+      const cdEl = document.getElementById('countdown');
+      cdEl.classList.remove('hidden');
+      cdEl.innerText = count;
+
+      captureTimer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          cdEl.innerText = count;
+        } else {
+          clearInterval(captureTimer);
+          cdEl.classList.add('hidden');
+          
+          takePhoto(index);
+
+          const previewImg = document.getElementById('shot-preview-overlay');
+          previewImg.src = capturedImages[index];
+          previewImg.classList.remove('hidden');
+
+          setTimeout(() => {
+            if (isCapturing) captureNext(index + 1);
+          }, 3000);
+        }
+      }, 1000);
+    }
+
+    function takePhoto(index) {
+      const video = document.getElementById('webcam');
+      const canvas = document.createElement('canvas');
+      
+      const vWidth = video.videoWidth;
+      const vHeight = video.videoHeight;
+
+      if (targetShotCount === 1) {
+        canvas.width = 1050;
+        canvas.height = 1350;
+
+        const targetRatio = 1050 / 1350;
+        const videoRatio = vWidth / vHeight;
+
+        let cropWidth, cropHeight, startX, startY;
+
+        if (videoRatio > targetRatio) {
+          cropHeight = vHeight;
+          cropWidth = vHeight * targetRatio;
+          startX = (vWidth - cropWidth) / 2;
+          startY = 0;
+        } else {
+          cropWidth = vWidth;
+          cropHeight = vWidth / targetRatio;
+          startX = 0;
+          startY = (vHeight - cropHeight) / 2;
+        }
+
         const ctx = canvas.getContext('2d');
-        const snapBtn = document.getElementById('snapBtn');
-        const printBtn = document.getElementById('printBtn');
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+      } else {
+        canvas.width = 900;
+        canvas.height = 675;
 
-        // 1. เปิดใช้งาน Web Camera
-        navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false })
-            .then((stream) => {
-                video.srcObject = stream;
-            })
-            .catch((err) => {
-                console.error("ไม่สามารถเข้าถึงกล้องได้: ", err);
-                alert("กรุณายินยอมให้เข้าถึงกล้องถ่ายรูป");
-            });
+        const targetRatio = 900 / 675;
+        const videoRatio = vWidth / vHeight;
 
-        // 2. เมื่อกดปุ่มถ่ายรูป
-        snapBtn.addEventListener('click', () => {
-            // วาดรูปจาก Video ลง Canvas (กลับกระจกให้ตรงกับมุมมองคนถ่าย)
-            ctx.save();
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
-            ctx.restore();
+        let cropWidth, cropHeight, startX, startY;
 
-            // ประมวลผลภาพด้วย Floyd-Steinberg Dithering
-            applyFloydSteinbergDithering(ctx, canvas.width, canvas.height);
-        });
-
-        // 3. อัลกอริทึม Floyd-Steinberg Dithering
-        function applyFloydSteinbergDithering(context, width, height) {
-            const imgData = context.getImageData(0, 0, width, height);
-            const data = imgData.data;
-
-            // ขั้นตอนที่ 1: แปลงภาพเป็น Grayscale (สเกลเทา)
-            for (let i = 0; i < data.length; i += 4) {
-                const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-                data[i] = gray;     // Red
-                data[i + 1] = gray; // Green
-                data[i + 2] = gray; // Blue
-            }
-
-            // ขั้นตอนที่ 2: คำนวณ Dithering กระจาย Error เพื่อสร้างเงาพิกเซล
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const idx = (y * width + x) * 4;
-                    const oldPixel = data[idx];
-                    
-                    // ตัดสินใจเลือกสีดำ (0) หรือสีขาว (255)
-                    const newPixel = oldPixel < 128 ? 0 : 255;
-                    
-                    data[idx] = newPixel;
-                    data[idx + 1] = newPixel;
-                    data[idx + 2] = newPixel;
-
-                    const quantError = oldPixel - newPixel; // คำนวณส่วนต่างแสงเงา
-
-                    // กระจายค่า Error ให้พิกเซลข้างเคียง
-                    distributeError(data, width, height, x + 1, y, quantError * (7 / 16));
-                    distributeError(data, width, height, x - 1, y + 1, quantError * (3 / 16));
-                    distributeError(data, width, height, x, y + 1, quantError * (5 / 16));
-                    distributeError(data, width, height, x + 1, y + 1, quantError * (1 / 16));
-                }
-            }
-
-            // เขียนข้อมูลภาพที่ประมวลผลแล้วกลับลง Canvas
-            context.putImageData(imgData, 0, 0);
+        if (videoRatio > targetRatio) {
+          cropHeight = vHeight;
+          cropWidth = vHeight * targetRatio;
+          startX = (vWidth - cropWidth) / 2;
+          startY = 0;
+        } else {
+          cropWidth = vWidth;
+          cropHeight = vWidth / targetRatio;
+          startX = 0;
+          startY = (vHeight - cropHeight) / 2;
         }
 
-        // ฟังก์ชันช่วยกระจายค่า Error
-        function distributeError(data, width, height, x, y, error) {
-            if (x < 0 || x >= width || y < 0 || y >= height) return;
-            const idx = (y * width + x) * 4;
-            const val = data[idx] + error;
-            const clampedVal = Math.max(0, Math.min(255, val));
-            data[idx] = clampedVal;
-            data[idx + 1] = clampedVal;
-            data[idx + 2] = clampedVal;
+        const ctx = canvas.getContext('2d');
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+      }
+
+      capturedImages[index] = canvas.toDataURL('image/png');
+    }
+
+    function retakeSingleShot(index) {
+      isCapturing = true;
+      document.getElementById('shot-preview-overlay').classList.add('hidden');
+      document.getElementById('retake-controls').classList.add('hidden');
+      document.getElementById('camera-guide').classList.remove('hidden');
+      
+      let count = 3;
+      const cdEl = document.getElementById('countdown');
+      cdEl.classList.remove('hidden');
+      cdEl.innerText = count;
+
+      captureTimer = setInterval(() => {
+        count--;
+        if (count > 0) {
+          cdEl.innerText = count;
+        } else {
+          clearInterval(captureTimer);
+          cdEl.classList.add('hidden');
+          takePhoto(index);
+          
+          const previewImg = document.getElementById('shot-preview-overlay');
+          previewImg.src = capturedImages[index];
+          previewImg.classList.remove('hidden');
+
+          setTimeout(() => {
+            document.getElementById('shot-preview-overlay').classList.add('hidden');
+            showRetakeUI();
+          }, 3000);
+        }
+      }, 1000);
+    }
+
+    function showRetakeUI() {
+      isCapturing = false;
+      document.getElementById('shot-preview-overlay').classList.add('hidden');
+      document.getElementById('camera-guide').classList.add('hidden');
+
+      const previewContainer = document.getElementById('shots-preview');
+      previewContainer.innerHTML = capturedImages.map((img, i) => `
+        <div class="relative cursor-pointer border-2 border-stone-300 hover:border-stone-800 rounded overflow-hidden group" onclick="retakeSingleShot(${i})">
+          <img src="${img}" class="w-20 h-16 object-cover">
+          <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-90 transition">
+            <span class="text-white text-[11px] font-medium bg-black/60 px-1.5 py-0.5 rounded">ถ่ายใหม่</span>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('retake-controls').classList.remove('hidden');
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        if (!src) return resolve(null);
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    async function renderFinalCanvas() {
+      const canvas = document.getElementById('final-canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (targetShotCount === 1) {
+        canvas.width = 1200;
+        canvas.height = 1950;
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        try {
+          const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
+          
+          if (shotImages[0]) {
+            const photoW = 1050;
+            const photoH = 1350;
+
+            const photoX = 75;
+            const photoY = 150;
+
+            ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
+          }
+
+          if (selectedFrame) {
+            const frameImg = await loadImage(selectedFrame);
+            if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+          }
+        } catch (err) {
+          console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 1 ช็อต", err);
         }
 
-        // 4. สั่งพิมพ์ภาพ
-        printBtn.addEventListener('click', () => {
-            window.print();
-        });
-    </script>
+      } else {
+        canvas.width = 1050;
+        canvas.height = 3150;
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        try {
+          const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
+          
+          const photoW = 900;
+          const photoH = 675;
+          const photoX = 73.5;
+          const topYs = [375, 1125, 1875];
+
+          shotImages.forEach((img, i) => {
+            if (img) ctx.drawImage(img, photoX, topYs[i], photoW, photoH);
+          });
+
+          if (selectedFrame) {
+            const frameImg = await loadImage(selectedFrame);
+            if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
+          }
+        } catch (err) {
+          console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 3 ช็อต", err);
+        }
+      }
+    }
+
+    function adjustCopies(delta) {
+      const input = document.getElementById('print-copies');
+      let val = parseInt(input.value) || 1;
+      val = Math.max(1, Math.min(10, val + delta));
+      input.value = val;
+    }
+
+    function triggerPrint() {
+      const copies = parseInt(document.getElementById('print-copies').value) || 1;
+      for (let i = 0; i < copies; i++) {
+        window.print();
+      }
+    }
+
+    async function downloadImage() {
+      const canvas = document.getElementById('final-canvas');
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+      try {
+        const response = await fetch(dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Photo Booth',
+            text: 'รูปถ่ายจาก Photo Booth'
+          });
+        } else {
+          const link = document.createElement('a');
+          link.download = `photobooth-${Date.now()}.jpg`;
+          link.href = dataUrl;
+          link.click();
+        }
+      } catch (err) {
+        console.error('Save image failed:', err);
+      }
+    }
+
+    async function printDirectSerial() {
+      if (!('serial' in navigator)) {
+        alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge เวอร์ชันใหม่");
+        return;
+      }
+
+      try {
+        if (!serialPort) {
+          serialPort = await navigator.serial.requestPort();
+        }
+        await serialPort.open({ baudRate: 115200 });
+
+        const writer = serialPort.writable.getWriter();
+        const copies = parseInt(document.getElementById('print-copies').value) || 1;
+
+        for (let c = 0; c < copies; c++) {
+          await writer.write(new Uint8Array([0x1B, 0x40]));
+          await writer.write(new Uint8Array([0x1D, 0x56, 0x42, 0x00])); 
+        }
+
+        writer.releaseLock();
+        alert("ส่งคำสั่งพิมพ์ไปยังเครื่องพิมพ์เรียบร้อยแล้ว");
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการสั่งพิมพ์แบบ Direct Serial:", err);
+        alert("ไม่สามารถสั่งพิมพ์โดยตรงได้: " + err.message);
+      }
+    }
+  </script>
 </body>
 </html>
