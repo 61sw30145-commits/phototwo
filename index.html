@@ -46,6 +46,7 @@
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
 
+  <!-- ปุ่มย้อนกลับ -->
   <div id="back-button-container" class="absolute top-6 left-6 hidden">
     <button onclick="goBack()" class="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-full shadow-sm hover:border-stone-800 transition text-sm font-medium text-stone-700">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -55,11 +56,13 @@
     </button>
   </div>
 
+  <!-- Step 1: หน้าแรก -->
   <div id="step-1" class="text-center space-y-6">
     <h1 class="text-4xl font-light tracking-wide">PHOTO BOOTH</h1>
     <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
   </div>
 
+  <!-- Step 1.5: เลือกจำนวนช็อต -->
   <div id="step-15" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">เลือกจำนวนช็อต</h2>
     <div class="grid grid-cols-2 gap-4">
@@ -74,11 +77,13 @@
     </div>
   </div>
 
+  <!-- Step 2: เลือกกรอบรูป -->
   <div id="step-2" class="hidden text-center space-y-6 w-full max-w-lg">
     <h2 class="text-2xl font-light">เลือกกรอบรูป</h2>
     <div id="frame-list" class="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto p-2"></div>
   </div>
 
+  <!-- Step 3: กล้อง & เลือกแก้ไขรูป -->
   <div id="step-3" class="hidden text-center space-y-4 w-full max-w-md">
     <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
       <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
@@ -100,6 +105,7 @@
     </div>
   </div>
 
+  <!-- Step 4: สั่งพิมพ์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
     
@@ -107,6 +113,7 @@
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
 
+    <!-- แผงตั้งค่าการพิมพ์ -->
     <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
       <div class="flex items-center justify-between text-sm">
         <label for="print-copies" class="font-medium text-stone-700">จำนวนที่ต้องการพิมพ์:</label>
@@ -484,7 +491,10 @@
       });
     }
 
-    // ฟังก์ชันสำหรับแปลงภาพเป็นขาวดำแบบ Floyd-Steinberg Dithering
+    /**
+     * ฟังก์ชันแปลงภาพถ่ายให้มีการกระจายน้ำหนักแสงเงา มิติความตื้นลึก 
+     * โดยการปรับ Contrast/Gamma + กระจายเม็ดจุดสไตล์ Halftone (Floyd-Steinberg Dithering)
+     */
     function ditherImage(imgElement, width, height) {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = width;
@@ -496,20 +506,40 @@
       const data = imgData.data;
       const gray = new Float32Array(width * height);
 
-      // แปลงเป็น Grayscale
+      // ค่าสำหรับปรับน้ำหนักแสงเงา (สามารถปรับแต่งได้)
+      const contrast = 1.15; // เพิ่ม Contrast เล็กน้อยเพื่อให้มิติแสงชัดขึ้น
+      const gamma = 0.95;     // ดึงรายละเอียดมืด-สว่างให้สมดุล
+
+      // 1. แปลงเป็น Grayscale พร้อมปรับแสงเงา (Contrast & Gamma Enhancement)
       for (let i = 0; i < data.length; i += 4) {
-        gray[i / 4] = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        // Luminance formula (ITU-R BT.601)
+        let lum = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        
+        // Normalize 0-1
+        let norm = lum / 255.0;
+        
+        // Contrast Adjustment
+        norm = ((norm - 0.5) * contrast) + 0.5;
+        norm = Math.max(0, Math.min(1, norm));
+        
+        // Gamma Correction (เพิ่มรายละเอียดในส่วนมืดและส่วนสว่าง)
+        norm = Math.pow(norm, gamma);
+        
+        gray[i / 4] = norm * 255.0;
       }
 
-      // Floyd-Steinberg Dithering Algorithm
+      // 2. Floyd-Steinberg Dithering Algorithm (กระจายความผิดพลาดของระดับสีเพื่อจำลองโทนสีเทา)
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const idx = y * width + x;
           const oldPixel = gray[idx];
+          
+          // ปรับ Threshold ตามน้ำหนักแสง
           const newPixel = oldPixel > 128 ? 255 : 0;
           gray[idx] = newPixel;
           const err = oldPixel - newPixel;
 
+          // กระจาย Error ไปยังพิกเซลข้างเคียงเพื่อสร้างจุดเม็ดทรายกระจายตัวสวยงาม
           if (x + 1 < width)                  gray[idx + 1]         += err * (7 / 16);
           if (y + 1 < height && x > 0)          gray[idx + width - 1] += err * (3 / 16);
           if (y + 1 < height)                  gray[idx + width]     += err * (5 / 16);
@@ -517,7 +547,7 @@
         }
       }
 
-      // เขียนค่ากลับ Canvas
+      // 3. เขียนค่าสีดำ-ขาวกลับ Canvas
       for (let i = 0; i < gray.length; i++) {
         const val = gray[i];
         const pxIdx = i * 4;
@@ -551,7 +581,7 @@
             const photoX = 75;
             const photoY = 150;
 
-            // แปลง Dither เฉพาะรูปถ่าย
+            // แปลงภาพถ่ายพร้อมการไล่ระดับแสงเงา Dither
             const ditheredPhoto = ditherImage(shotImages[0], photoW, photoH);
             ctx.drawImage(ditheredPhoto, photoX, photoY, photoW, photoH);
           }
@@ -581,7 +611,7 @@
 
           shotImages.forEach((img, i) => {
             if (img) {
-              // แปลง Dither เฉพาะรูปถ่ายแต่ละช็อต
+              // แปลงภาพถ่ายแต่ละช็อตด้วยกระบวนการ Dither ไล่ระดับเงา
               const ditheredPhoto = ditherImage(img, photoW, photoH);
               ctx.drawImage(ditheredPhoto, photoX, topYs[i], photoW, photoH);
             }
