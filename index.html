@@ -97,7 +97,7 @@
       <img id="shot-preview-overlay" class="absolute inset-0 w-full h-full object-contain hidden z-20" />
       <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white bg-black/40 hidden z-30">3</div>
     </div>
-    
+     
     <div id="retake-controls" class="hidden space-y-3">
       <p class="text-sm font-medium text-stone-700">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้น:</p>
       <div id="shots-preview" class="flex justify-center gap-2"></div>
@@ -108,7 +108,7 @@
   <!-- Step 4: สั่งพิมพ์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
-    
+     
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
@@ -491,74 +491,54 @@
       });
     }
 
-    /**
-     * ฟังก์ชันแปลงภาพถ่ายให้มีการกระจายน้ำหนักแสงเงา มิติความตื้นลึก 
-     * โดยการปรับ Contrast/Gamma + กระจายเม็ดจุดสไตล์ Halftone (Floyd-Steinberg Dithering)
-     */
-    function ditherImage(imgElement, width, height) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      const ctx = tempCanvas.getContext('2d');
-      ctx.drawImage(imgElement, 0, 0, width, height);
-
-      const imgData = ctx.getImageData(0, 0, width, height);
+    // ฟังก์ชันทำ Dithering แบบ Floyd-Steinberg
+    function applyFloydSteinbergDither(canvas) {
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imgData.data;
-      const gray = new Float32Array(width * height);
+      const width = canvas.width;
+      const height = canvas.height;
 
-      // ค่าสำหรับปรับน้ำหนักแสงเงา (สามารถปรับแต่งได้)
-      const contrast = 1.15; // เพิ่ม Contrast เล็กน้อยเพื่อให้มิติแสงชัดขึ้น
-      const gamma = 0.95;     // ดึงรายละเอียดมืด-สว่างให้สมดุล
-
-      // 1. แปลงเป็น Grayscale พร้อมปรับแสงเงา (Contrast & Gamma Enhancement)
+      // 1. แปลงภาพเป็น Grayscale
       for (let i = 0; i < data.length; i += 4) {
-        // Luminance formula (ITU-R BT.601)
-        let lum = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
-        
-        // Normalize 0-1
-        let norm = lum / 255.0;
-        
-        // Contrast Adjustment
-        norm = ((norm - 0.5) * contrast) + 0.5;
-        norm = Math.max(0, Math.min(1, norm));
-        
-        // Gamma Correction (เพิ่มรายละเอียดในส่วนมืดและส่วนสว่าง)
-        norm = Math.pow(norm, gamma);
-        
-        gray[i / 4] = norm * 255.0;
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        data[i] = gray;
+        data[i + 1] = gray;
+        data[i + 2] = gray;
       }
 
-      // 2. Floyd-Steinberg Dithering Algorithm (กระจายความผิดพลาดของระดับสีเพื่อจำลองโทนสีเทา)
+      function distributeError(x, y, err) {
+        if (x < 0 || x >= width || y < 0 || y >= height) return;
+        const idx = (y * width + x) * 4;
+        const val = data[idx] + err;
+        const clampedVal = Math.max(0, Math.min(255, val));
+        data[idx] = clampedVal;
+        data[idx + 1] = clampedVal;
+        data[idx + 2] = clampedVal;
+      }
+
+      // 2. คำนวณ Error Diffusion Dithering
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          const idx = y * width + x;
-          const oldPixel = gray[idx];
+          const idx = (y * width + x) * 4;
+          const oldPixel = data[idx];
           
-          // ปรับ Threshold ตามน้ำหนักแสง
-          const newPixel = oldPixel > 128 ? 255 : 0;
-          gray[idx] = newPixel;
-          const err = oldPixel - newPixel;
+          const newPixel = oldPixel < 128 ? 0 : 255;
+          
+          data[idx] = newPixel;
+          data[idx + 1] = newPixel;
+          data[idx + 2] = newPixel;
 
-          // กระจาย Error ไปยังพิกเซลข้างเคียงเพื่อสร้างจุดเม็ดทรายกระจายตัวสวยงาม
-          if (x + 1 < width)                  gray[idx + 1]         += err * (7 / 16);
-          if (y + 1 < height && x > 0)          gray[idx + width - 1] += err * (3 / 16);
-          if (y + 1 < height)                  gray[idx + width]     += err * (5 / 16);
-          if (y + 1 < height && x + 1 < width)  gray[idx + width + 1] += err * (1 / 16);
+          const error = oldPixel - newPixel;
+
+          distributeError(x + 1, y,     error * (7 / 16));
+          distributeError(x - 1, y + 1, error * (3 / 16));
+          distributeError(x,     y + 1, error * (5 / 16));
+          distributeError(x + 1, y + 1, error * (1 / 16));
         }
       }
 
-      // 3. เขียนค่าสีดำ-ขาวกลับ Canvas
-      for (let i = 0; i < gray.length; i++) {
-        const val = gray[i];
-        const pxIdx = i * 4;
-        data[pxIdx]     = val;
-        data[pxIdx + 1] = val;
-        data[pxIdx + 2] = val;
-        data[pxIdx + 3] = 255;
-      }
-
       ctx.putImageData(imgData, 0, 0);
-      return tempCanvas;
     }
 
     async function renderFinalCanvas() {
@@ -581,9 +561,7 @@
             const photoX = 75;
             const photoY = 150;
 
-            // แปลงภาพถ่ายพร้อมการไล่ระดับแสงเงา Dither
-            const ditheredPhoto = ditherImage(shotImages[0], photoW, photoH);
-            ctx.drawImage(ditheredPhoto, photoX, photoY, photoW, photoH);
+            ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
           }
 
           if (selectedFrame) {
@@ -610,11 +588,7 @@
           const topYs = [375, 1125, 1875];
 
           shotImages.forEach((img, i) => {
-            if (img) {
-              // แปลงภาพถ่ายแต่ละช็อตด้วยกระบวนการ Dither ไล่ระดับเงา
-              const ditheredPhoto = ditherImage(img, photoW, photoH);
-              ctx.drawImage(ditheredPhoto, photoX, topYs[i], photoW, photoH);
-            }
+            if (img) ctx.drawImage(img, photoX, topYs[i], photoW, photoH);
           });
 
           if (selectedFrame) {
@@ -625,6 +599,9 @@
           console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 3 ช็อต", err);
         }
       }
+
+      // ประมวลผล Dithering บน Canvas เพื่อพร้อมพิมพ์ออก Thermal Printer
+      applyFloydSteinbergDither(canvas);
     }
 
     function adjustCopies(delta) {
