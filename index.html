@@ -491,25 +491,21 @@
       });
     }
 
-    // ฟังก์ชัน Floyd-Steinberg Dithering แบบปรับจุดหยาบและกระจายจุดขาวสว่าง
-    function applyFloydSteinbergDither(canvas) {
-      const ctx = canvas.getContext('2d');
-      
-      // 1. ย่อขนาด Canvas ลงชั่วคราวเพื่อให้เม็ดจุดใหญ่ขึ้น 2 เท่า (scale = 0.5)
-      const scale = 0.5; 
+    // ฟังก์ชันสร้างภาพ Dithering จุดหยาบโปร่งสว่าง (ส่งออกเป็น Canvas เพื่อนำไปวางแยก)
+    function createDitheredImage(imgElement, scale = 0.5, threshold = 170) {
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = Math.floor(canvas.width * scale);
-      tempCanvas.height = Math.floor(canvas.height * scale);
+      tempCanvas.width = Math.floor(imgElement.width * scale);
+      tempCanvas.height = Math.floor(imgElement.height * scale);
       const tempCtx = tempCanvas.getContext('2d');
 
-      tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+      tempCtx.drawImage(imgElement, 0, 0, tempCanvas.width, tempCanvas.height);
 
       const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
       const data = imgData.data;
       const width = tempCanvas.width;
       const height = tempCanvas.height;
 
-      // 2. แปลงเป็น Grayscale
+      // แปลงเป็น Grayscale
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         data[i] = gray;
@@ -527,14 +523,11 @@
         data[idx + 2] = clampedVal;
       }
 
-      // 3. ปรับค่า Threshold เป็น 150 ช่วยสอดแทรกจุดสีขาวในโซนหมวก/ขวดขนม ไม่ให้ทึบเกินไป
-      const threshold = 150; 
-
+      // Threshold 170 ช่วยลดจุดกระจุกตัว ให้จุดดำเกาะกลุ่มน้อยลงอย่างชัดเจน
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const idx = (y * width + x) * 4;
           const oldPixel = data[idx];
-          
           const newPixel = oldPixel < threshold ? 0 : 255;
           
           data[idx] = newPixel;
@@ -552,9 +545,15 @@
 
       tempCtx.putImageData(imgData, 0, 0);
 
-      // 4. ขยายภาพกลับมาขนาดเดิมแบบ Pixelated ขอบจุดคมชัด ไม่เบลอ
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+      const outputCanvas = document.createElement('canvas');
+      outputCanvas.width = imgElement.width;
+      outputCanvas.height = imgElement.height;
+      const outCtx = outputCanvas.getContext('2d');
+      
+      outCtx.imageSmoothingEnabled = false;
+      outCtx.drawImage(tempCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+
+      return outputCanvas;
     }
 
     async function renderFinalCanvas() {
@@ -569,17 +568,15 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         try {
-          const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
+          const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
-          if (shotImages[0]) {
-            const photoW = 1050;
-            const photoH = 1350;
-            const photoX = 75;
-            const photoY = 150;
-
-            ctx.drawImage(shotImages[0], photoX, photoY, photoW, photoH);
+          if (rawImages[0]) {
+            // ทำ Dithering เฉพาะรูปถ่าย
+            const ditheredPhoto = createDitheredImage(rawImages[0], 0.5, 170);
+            ctx.drawImage(ditheredPhoto, 75, 150, 1050, 1350);
           }
 
+          // วาดกรอบรูปทับลงไปโดยไม่โดน Dithering
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -596,17 +593,18 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         try {
-          const shotImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
-          
-          const photoW = 900;
-          const photoH = 675;
-          const photoX = 73.5;
+          const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           const topYs = [375, 1125, 1875];
 
-          shotImages.forEach((img, i) => {
-            if (img) ctx.drawImage(img, photoX, topYs[i], photoW, photoH);
+          // ทำ Dithering เฉพาะรูปถ่ายแต่ละใบ
+          rawImages.forEach((img, i) => {
+            if (img) {
+              const ditheredPhoto = createDitheredImage(img, 0.5, 170);
+              ctx.drawImage(ditheredPhoto, 73.5, topYs[i], 900, 675);
+            }
           });
 
+          // วาดกรอบรูปทับลงไปโดยไม่โดน Dithering
           if (selectedFrame) {
             const frameImg = await loadImage(selectedFrame);
             if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
@@ -615,9 +613,6 @@
           console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 3 ช็อต", err);
         }
       }
-
-      // เรียกใช้ฟังก์ชันประมวลผล Dithering จุดหยาบ
-      applyFloydSteinbergDither(canvas);
     }
 
     function adjustCopies(delta) {
