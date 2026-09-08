@@ -97,7 +97,7 @@
       <img id="shot-preview-overlay" class="absolute inset-0 w-full h-full object-contain hidden z-20" />
       <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white bg-black/40 hidden z-30">3</div>
     </div>
-     
+      
     <div id="retake-controls" class="hidden space-y-3">
       <p class="text-sm font-medium text-stone-700">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้น:</p>
       <div id="shots-preview" class="flex justify-center gap-2"></div>
@@ -108,7 +108,7 @@
   <!-- Step 4: สั่งพิมพ์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
-     
+      
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
     </div>
@@ -129,7 +129,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          สั่งพิมพ์
+          สั่งพิมพ์ผ่านระบบ
         </button>
 
         <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
@@ -505,7 +505,7 @@
       const width = tempCanvas.width;
       const height = tempCanvas.height;
 
-      // 1. แปลงเป็น Grayscale พร้อมปรับดันสว่างโทนกลาง-มืด (+25) เพื่อดึงจุดสีขาวลงไปในเงาลึก
+      // 1. แปลงเป็น Grayscale พร้อมปรับดันสว่างโทนกลาง-มืด (+25)
       for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         gray = Math.min(255, gray + 25);
@@ -574,7 +574,6 @@
           const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (rawImages[0]) {
-            // ใช้ scale 0.35 และ threshold 185 เพื่อให้จุดห่างขึ้นและเน้นความตื้นลึก
             const ditheredPhoto = createDitheredImage(rawImages[0], 0.35, 185);
             ctx.drawImage(ditheredPhoto, 75, 150, 1050, 1350);
           }
@@ -600,7 +599,6 @@
 
           rawImages.forEach((img, i) => {
             if (img) {
-              // ใช้ scale 0.35 และ threshold 185 สำหรับทุกรูปถ่าย
               const ditheredPhoto = createDitheredImage(img, 0.35, 185);
               ctx.drawImage(ditheredPhoto, 73.5, topYs[i], 900, 675);
             }
@@ -656,9 +654,85 @@
       }
     }
 
+    // ==========================================
+    // ESC/POS Raster Printer Command Converter (GS v 0)
+    // ==========================================
+    function canvasToEscPosRaster(canvas) {
+      // ย่อความกว้างลงมาให้พอดีกับหัวพิมพ์ 80mm (ความกว้างมาตรฐาน 576 พิกเซล)
+      const targetWidth = 576;
+      const scale = targetWidth / canvas.width;
+      const targetHeight = Math.floor(canvas.height * scale);
+
+      const printCanvas = document.createElement('canvas');
+      printCanvas.width = targetWidth;
+      printCanvas.height = targetHeight;
+      const pCtx = printCanvas.getContext('2d');
+      pCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+
+      const imgData = pCtx.getImageData(0, 0, targetWidth, targetHeight);
+      const data = imgData.data;
+
+      const widthBytes = Math.ceil(targetWidth / 8);
+      const commandList = [];
+
+      // Initialize Printer (ESC @)
+      commandList.push(new Uint8Array([0x1B, 0x40]));
+      // Line Spacing = 0 (ESC 3 0)
+      commandList.push(new Uint8Array([0x1B, 0x33, 0x00]));
+
+      // GS v 0 Header
+      const xL = widthBytes & 0xFF;
+      const xH = (widthBytes >> 8) & 0xFF;
+      const yL = targetHeight & 0xFF;
+      const yH = (targetHeight >> 8) & 0xFF;
+
+      const header = new Uint8Array([0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
+      commandList.push(header);
+
+      // Convert RGBA to Bitmap Bytes
+      const rasterData = new Uint8Array(widthBytes * targetHeight);
+      let bytePos = 0;
+
+      for (let y = 0; y < targetHeight; y++) {
+        for (let b = 0; b < widthBytes; b++) {
+          let byteVal = 0;
+          for (let bit = 0; bit < 8; bit++) {
+            const x = b * 8 + bit;
+            if (x < targetWidth) {
+              const idx = (y * targetWidth + x) * 4;
+              const r = data[idx];
+              const g = data[idx + 1];
+              const bColor = data[idx + 2];
+              const brightness = 0.299 * r + 0.587 * g + 0.114 * bColor;
+
+              // พิกเซลเข้มกว่า threshold ให้จี้หัวความร้อน (Bit = 1)
+              if (brightness < 128) {
+                byteVal |= (0x80 >> bit);
+              }
+            }
+          }
+          rasterData[bytePos++] = byteVal;
+        }
+      }
+
+      commandList.push(rasterData);
+
+      // Feed paper & Cut (ESC d 4 + GS V 0)
+      commandList.push(new Uint8Array([0x1B, 0x64, 0x04]));
+      commandList.push(new Uint8Array([0x1D, 0x56, 0x00]));
+
+      return commandList;
+    }
+
     async function printDirectSerial() {
       if (!('serial' in navigator)) {
-        alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge เวอร์ชันใหม่");
+        alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge บน Windows/macOS/Android");
+        return;
+      }
+
+      const canvas = document.getElementById('final-canvas');
+      if (!canvas) {
+        alert("ไม่พบ Canvas สำหรับสั่งพิมพ์");
         return;
       }
 
@@ -666,18 +740,23 @@
         if (!serialPort) {
           serialPort = await navigator.serial.requestPort();
         }
-        await serialPort.open({ baudRate: 115200 });
+
+        if (!serialPort.writable) {
+          await serialPort.open({ baudRate: 115200 });
+        }
 
         const writer = serialPort.writable.getWriter();
         const copies = parseInt(document.getElementById('print-copies').value) || 1;
+        const printCommands = canvasToEscPosRaster(canvas);
 
         for (let c = 0; c < copies; c++) {
-          await writer.write(new Uint8Array([0x1B, 0x40]));
-          await writer.write(new Uint8Array([0x1D, 0x56, 0x42, 0x00])); 
+          for (const cmd of printCommands) {
+            await writer.write(cmd);
+          }
         }
 
         writer.releaseLock();
-        alert("ส่งคำสั่งพิมพ์ไปยังเครื่องพิมพ์เรียบร้อยแล้ว");
+        alert("ส่งคำสั่งพิมพ์ไปยังเครื่องพิมพ์ใบเสร็จเรียบร้อยแล้ว!");
       } catch (err) {
         console.error("เกิดข้อผิดพลาดในการสั่งพิมพ์แบบ Direct Serial:", err);
         alert("ไม่สามารถสั่งพิมพ์โดยตรงได้: " + err.message);
