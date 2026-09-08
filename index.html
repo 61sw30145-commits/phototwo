@@ -42,20 +42,6 @@
       }
     }
     #webcam { transform: scaleX(-1); }
-
-    /* มาร์กมุม 4 มุมสำหรับกรอบถ่ายรูป */
-    .corner-mark {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border-color: #ffffff;
-      border-style: solid;
-      pointer-events: none;
-    }
-    .top-left { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
-    .top-right { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
-    .bottom-left { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; }
-    .bottom-right { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
   </style>
 </head>
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
@@ -97,23 +83,14 @@
     <div id="frame-list" class="grid grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto p-2"></div>
   </div>
 
-  <!-- Step 3: กล้อง & กำหนดพื้นที่รูปภาพ -->
+  <!-- Step 3: กล้อง & เลือกแก้ไขรูป -->
   <div id="step-3" class="hidden text-center space-y-4 w-full max-w-md">
     <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
       <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
 
-      <!-- กรอบไกด์กำหนดตำแหน่งรูปถ่าย -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-        <div id="guide-box" class="border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300">
-          <!-- มาร์กมุมทั้ง 4 -->
-          <div class="corner-mark top-left"></div>
-          <div class="corner-mark top-right"></div>
-          <div class="corner-mark bottom-left"></div>
-          <div class="corner-mark bottom-right"></div>
-          
-          <span class="text-xs font-medium text-white bg-black/60 px-3 py-1 rounded-full backdrop-blur-md absolute top-3 shadow-sm border border-white/20">
-            📸 วางใบให้อยู่ในกรอบนี้ (ส่วนที่จะติดในรูป)
-          </span>
+        <div id="guide-box" class="border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center">
+          <span class="text-xs text-white/70 bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm absolute top-2">ให้อยู่ในกรอบนี้</span>
         </div>
       </div>
 
@@ -277,9 +254,9 @@
       if (step === 3) {
         const guideBox = document.getElementById('guide-box');
         if (targetShotCount === 1) {
-          guideBox.className = "w-[80%] aspect-[70/90] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300 rounded-md";
+          guideBox.className = "w-full aspect-[70/90] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         } else {
-          guideBox.className = "w-[85%] aspect-[900/675] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300 rounded-md";
+          guideBox.className = "w-full aspect-[60/45] border-2 border-dashed border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] relative flex items-center justify-center";
         }
 
         if (!capturedImages[0]) {
@@ -514,10 +491,8 @@
       });
     }
 
-    // ==========================================
-    // อัปเกรด Image Dithering ให้เม็ดจุดเล็กลง และคมชัดมากขึ้น
-    // ==========================================
-    function createDitheredImage(imgElement, scale = 0.65, threshold = 170) {
+    // ฟังก์ชัน Dithering ที่ปรับแต่งให้จุดกระจายตัวห่างกันอย่างเห็นได้ชัด โปร่งตา ไม่ทึบดำ
+    function createDitheredImage(imgElement, scale = 0.35, threshold = 185) {
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = Math.floor(imgElement.width * scale);
       tempCanvas.height = Math.floor(imgElement.height * scale);
@@ -530,32 +505,28 @@
       const width = tempCanvas.width;
       const height = tempCanvas.height;
 
-      // 1. ปรับ Contrast และความสว่าง เพื่อเพิ่มความคมชัดของมิติภาพ
-      const contrastFactor = 1.25; // เพิ่มคอนทราสต์ 25%
+      // 1. แปลงเป็น Grayscale พร้อมปรับดันสว่างโทนกลาง-มืด (+25)
       for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        
-        // ปรับ Contrast ให้รายละเอียดขอบภาพและเส้นผมชัดขึ้น
-        gray = ((gray - 128) * contrastFactor) + 128 + 15;
-        gray = Math.max(0, Math.min(255, gray));
+        gray = Math.min(255, gray + 25);
 
         data[i] = gray;
         data[i + 1] = gray;
         data[i + 2] = gray;
       }
 
-      // 2. กระจาย Error Diffusion แบบสมดุล เพื่อให้จุดพิกเซลมีขนาดเล็กเนียน
+      // 2. ลดอัตราการกระจาย Error (คูณ 0.75) ป้องกันไม่ให้จุดดำกระจุกตัวแน่นเกินไป
       function distributeError(x, y, err) {
         if (x < 0 || x >= width || y < 0 || y >= height) return;
         const idx = (y * width + x) * 4;
-        const val = data[idx] + (err * 0.82);
+        const val = data[idx] + (err * 0.75);
         const clampedVal = Math.max(0, Math.min(255, val));
         data[idx] = clampedVal;
         data[idx + 1] = clampedVal;
         data[idx + 2] = clampedVal;
       }
 
-      // 3. วนลูปสร้าง Floyd-Steinberg Dithering ละเอียด
+      // 3. วนลูปสร้าง Floyd-Steinberg Dithering
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
           const idx = (y * width + x) * 4;
@@ -603,7 +574,7 @@
           const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (rawImages[0]) {
-            const ditheredPhoto = createDitheredImage(rawImages[0], 0.65, 170);
+            const ditheredPhoto = createDitheredImage(rawImages[0], 0.35, 185);
             ctx.drawImage(ditheredPhoto, 75, 150, 1050, 1350);
           }
 
@@ -628,7 +599,7 @@
 
           rawImages.forEach((img, i) => {
             if (img) {
-              const ditheredPhoto = createDitheredImage(img, 0.65, 170);
+              const ditheredPhoto = createDitheredImage(img, 0.35, 185);
               ctx.drawImage(ditheredPhoto, 73.5, topYs[i], 900, 675);
             }
           });
@@ -687,7 +658,7 @@
     // ESC/POS Raster Printer Command Converter (GS v 0)
     // ==========================================
     function canvasToEscPosRaster(canvas) {
-      // ปรับขนาดพิกเซลความกว้างหัวพิมพ์ ให้เหมาะสมกับเครื่องพิมพ์ 80mm (576 พิกเซล)
+      // ย่อความกว้างลงมาให้พอดีกับหัวพิมพ์ 80mm (ความกว้างมาตรฐาน 576 พิกเซล)
       const targetWidth = 576;
       const scale = targetWidth / canvas.width;
       const targetHeight = Math.floor(canvas.height * scale);
@@ -734,6 +705,7 @@
               const bColor = data[idx + 2];
               const brightness = 0.299 * r + 0.587 * g + 0.114 * bColor;
 
+              // พิกเซลเข้มกว่า threshold ให้จี้หัวความร้อน (Bit = 1)
               if (brightness < 128) {
                 byteVal |= (0x80 >> bit);
               }
