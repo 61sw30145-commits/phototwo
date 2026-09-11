@@ -6,41 +6,46 @@
   <title>Minimal Photo Booth (2 Shots)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
-    /* สไตล์สำหรับการพิมพ์ผ่านเบราว์เซอร์ */
+    /* -------------------------------------------------- */
+    /* สไตล์สำหรับการพิมพ์สลิปผ่าน Safari บน iPad (AirPrint) */
+    /* -------------------------------------------------- */
     @media print {
       @page {
         size: 70mm 210mm;
         margin: 0;
       }
       body {
-        margin: 0;
-        padding: 0;
-        background: #fff;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
       }
+      /* ซ่อนองค์ประกอบหน้าจอทั้งหมด */
       body * { 
-        visibility: hidden; 
+        visibility: hidden !important; 
       }
-      #print-area, #print-area *, #final-canvas { 
+      /* แสดงเฉพาะพื้นที่รูปที่จะพิมพ์ */
+      #print-area, #print-area *, #print-image-tag { 
         visibility: visible !important; 
       }
       #print-area {
         position: absolute;
         left: 0;
         top: 0;
-        width: 70mm;
+        width: 70mm !important;
         height: auto;
-        display: block;
+        display: block !important;
       }
-      #final-canvas {
+      #print-image-tag {
         width: 100% !important;
         height: auto !important;
         display: block !important;
         object-fit: contain;
       }
-      #back-button-container, .bg-white { 
+      #back-button-container, .bg-white, #final-canvas { 
         display: none !important; 
       }
     }
+
     #webcam { transform: scaleX(-1); }
 
     /* มาร์กมุม 4 มุมสำหรับกรอบถ่ายรูป */
@@ -76,7 +81,7 @@
     <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
   </div>
 
-  <!-- Step 1.5: เลือกจำนวนช็อต (ปรับเหลือ 2 ช็อต) -->
+  <!-- Step 1.5: เลือกจำนวนช็อต (2 ช็อต) -->
   <div id="step-15" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">เลือกจำนวนช็อต</h2>
     <div class="flex justify-center">
@@ -125,32 +130,21 @@
       
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
+      <!-- แท็ก <img> พิเศษเพื่อช่วยการพิมพ์บน Safari iOS ให้เสถียร 100% -->
+      <img id="print-image-tag" class="hidden" alt="Print Render">
     </div>
 
     <!-- แผงตั้งค่าการพิมพ์ -->
     <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
-      <div class="flex items-center justify-between text-sm">
-        <label for="print-copies" class="font-medium text-stone-700">จำนวนที่ต้องการพิมพ์:</label>
-        <div class="flex items-center border border-stone-300 rounded-lg overflow-hidden">
-          <button onclick="adjustCopies(-1)" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700">-</button>
-          <input type="number" id="print-copies" value="1" min="1" max="10" class="w-12 text-center py-1 focus:outline-none text-stone-800 font-medium">
-          <button onclick="adjustCopies(1)" class="px-3 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700">+</button>
-        </div>
-      </div>
-
-      <div class="flex flex-col gap-2 pt-2 border-t border-stone-100">
-        <button onclick="triggerPrint()" class="w-full py-2.5 bg-stone-800 text-white rounded-xl hover:bg-stone-700 transition font-medium flex items-center justify-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div class="flex flex-col gap-2 pt-1">
+        <button onclick="triggerPrint()" class="w-full py-3 bg-stone-800 text-white rounded-xl hover:bg-stone-700 transition font-medium flex items-center justify-center gap-2 text-base shadow-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          สั่งพิมพ์ผ่านระบบ
+          สั่งพิมพ์สลิป (AirPrint / Printer Sharing)
         </button>
 
-        <button onclick="printDirectSerial()" class="w-full py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded-xl transition text-xs font-medium border border-stone-200">
-          🔌 เลือกเครื่องพิมพ์โดยตรง (USB/Serial Thermal Printer)
-        </button>
-
-        <button onclick="downloadImage()" class="w-full py-2 bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 rounded-xl transition font-medium text-sm flex items-center justify-center gap-2">
+        <button onclick="downloadImage()" class="w-full py-2.5 bg-white text-stone-800 border border-stone-300 hover:bg-stone-50 rounded-xl transition font-medium text-sm flex items-center justify-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
@@ -166,13 +160,12 @@
     let currentStep = 1;
     let stepHistory = [1];
     let selectedFrame = null;
-    let targetShotCount = 2; // ตั้งค่าเริ่มต้นเป็น 2 ช็อต
+    let targetShotCount = 2;
     let capturedImages = [];
     let frames = [];
     let captureTimer = null;
     let isCapturing = false;
     let mediaStream = null;
-    let serialPort = null;
 
     async function loadConfig() {
       try {
@@ -275,7 +268,7 @@
     async function startCameraAndCapture() {
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 } }, 
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" }, 
           audio: false 
         });
         document.getElementById('webcam').srcObject = mediaStream;
@@ -321,7 +314,7 @@
 
           setTimeout(() => {
             if (isCapturing) captureNext(index + 1);
-          }, 3000);
+          }, 2000);
         }
       }, 1000);
     }
@@ -333,7 +326,6 @@
       const vWidth = video.videoWidth;
       const vHeight = video.videoHeight;
 
-      // ปรับสัดส่วนการ Crop ให้พอดีกับกรอบ 65x50 (13:10)
       canvas.width = 975;
       canvas.height = 750;
 
@@ -389,7 +381,7 @@
           setTimeout(() => {
             document.getElementById('shot-preview-overlay').classList.add('hidden');
             showRetakeUI();
-          }, 3000);
+          }, 2000);
         }
       }, 1000);
     }
@@ -422,7 +414,7 @@
       });
     }
 
-    // Halftone Clustered-Dot Dithering
+    // Halftone Clustered-Dot Dithering สำหรับสลิปความร้อน Xprinter
     function createDitheredImage(imgElement, scale = 1.0, contrast = 1.2) {
       const canvas = document.createElement('canvas');
       canvas.width = imgElement.width;
@@ -482,7 +474,6 @@
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
-      // 70mm x 210mm (อัตราส่วน 1mm = 15px)
       canvas.width = 1050; 
       canvas.height = 3150;
 
@@ -492,13 +483,10 @@
       try {
         const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
         
-        // ระยะขอบและตำแหน่งในหน่วย Pixel
         const frameWidth = 975;   // 65mm
         const frameHeight = 750;  // 50mm
         const marginX = 37.5;     // 2.5mm
         
-        // ช็อตที่ 1: ห่างขอบบน 65mm (975px)
-        // ช็อตที่ 2: ห่างจากช็อตแรก 5.1mm (76.5px) -> Y = 975 + 750 + 76.5 = 1801.5px
         const topYs = [975, 1801.5];
 
         rawImages.forEach((img, i) => {
@@ -512,25 +500,30 @@
           const frameImg = await loadImage(selectedFrame);
           if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
         }
-      } catch (err) {
-        console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 2 ช็อต", err);
-      }
-    }
 
-    function adjustCopies(delta) {
-      const input = document.getElementById('print-copies');
-      let val = parseInt(input.value) || 1;
-      val = Math.max(1, Math.min(10, val + delta));
-      input.value = val;
+        // แปลง Canvas ไปยังแท็ก <img> เพื่อรองรับการพิมพ์บน Safari iOS
+        if (isForPrint) {
+          const printImgTag = document.getElementById('print-image-tag');
+          printImgTag.src = canvas.toDataURL('image/png');
+        }
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการสร้าง Canvas", err);
+      }
     }
 
     async function triggerPrint() {
+      // 1. Render รูปแบบ Dithering สำหรับการพิมพ์
       await renderFinalCanvas(true);
-      const copies = parseInt(document.getElementById('print-copies').value) || 1;
-      for (let i = 0; i < copies; i++) {
+      
+      // 2. ให้เบราว์เซอร์เตรียมภาพสักครู่แล้วเรียกหน้าต่าง พิมพ์ (AirPrint)
+      setTimeout(() => {
         window.print();
-      }
-      await renderFinalCanvas(false);
+        
+        // 3. หลังสั่งพิมพ์ คืนค่า Canvas ให้แสดงผลปกติบนหน้าจอ
+        setTimeout(() => {
+          renderFinalCanvas(false);
+        }, 1000);
+      }, 300);
     }
 
     async function downloadImage() {
@@ -556,110 +549,6 @@
         }
       } catch (err) {
         console.error('Save image failed:', err);
-      }
-    }
-
-    // ESC/POS Raster Printer Command Converter (GS v 0)
-    function canvasToEscPosRaster(canvas) {
-      const targetWidth = 576;
-      const scale = targetWidth / canvas.width;
-      const targetHeight = Math.floor(canvas.height * scale);
-
-      const printCanvas = document.createElement('canvas');
-      printCanvas.width = targetWidth;
-      printCanvas.height = targetHeight;
-      const pCtx = printCanvas.getContext('2d');
-      pCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
-
-      const imgData = pCtx.getImageData(0, 0, targetWidth, targetHeight);
-      const data = imgData.data;
-
-      const widthBytes = Math.ceil(targetWidth / 8);
-      const commandList = [];
-
-      commandList.push(new Uint8Array([0x1B, 0x40]));
-      commandList.push(new Uint8Array([0x1B, 0x33, 0x00]));
-
-      const xL = widthBytes & 0xFF;
-      const xH = (widthBytes >> 8) & 0xFF;
-      const yL = targetHeight & 0xFF;
-      const yH = (targetHeight >> 8) & 0xFF;
-
-      const header = new Uint8Array([0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
-      commandList.push(header);
-
-      const rasterData = new Uint8Array(widthBytes * targetHeight);
-      let bytePos = 0;
-
-      for (let y = 0; y < targetHeight; y++) {
-        for (let b = 0; b < widthBytes; b++) {
-          let byteVal = 0;
-          for (let bit = 0; bit < 8; bit++) {
-            const x = b * 8 + bit;
-            if (x < targetWidth) {
-              const idx = (y * targetWidth + x) * 4;
-              const r = data[idx];
-              const g = data[idx + 1];
-              const bColor = data[idx + 2];
-              const brightness = 0.299 * r + 0.587 * g + 0.114 * bColor;
-
-              if (brightness < 128) {
-                byteVal |= (0x80 >> bit);
-              }
-            }
-          }
-          rasterData[bytePos++] = byteVal;
-        }
-      }
-
-      commandList.push(rasterData);
-      commandList.push(new Uint8Array([0x1B, 0x64, 0x04]));
-      commandList.push(new Uint8Array([0x1D, 0x56, 0x00]));
-
-      return commandList;
-    }
-
-    async function printDirectSerial() {
-      if (!('serial' in navigator)) {
-        alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge บน Windows/macOS/Android");
-        return;
-      }
-
-      await renderFinalCanvas(true);
-
-      const canvas = document.getElementById('final-canvas');
-      if (!canvas) {
-        alert("ไม่พบ Canvas สำหรับสั่งพิมพ์");
-        await renderFinalCanvas(false);
-        return;
-      }
-
-      try {
-        if (!serialPort) {
-          serialPort = await navigator.serial.requestPort();
-        }
-
-        if (!serialPort.writable) {
-          await serialPort.open({ baudRate: 115200 });
-        }
-
-        const writer = serialPort.writable.getWriter();
-        const copies = parseInt(document.getElementById('print-copies').value) || 1;
-        const printCommands = canvasToEscPosRaster(canvas);
-
-        for (let c = 0; c < copies; c++) {
-          for (const cmd of printCommands) {
-            await writer.write(cmd);
-          }
-        }
-
-        writer.releaseLock();
-        alert("ส่งคำสั่งพิมพ์ไปยังเครื่องพิมพ์ใบเสร็จเรียบร้อยแล้ว!");
-      } catch (err) {
-        console.error("เกิดข้อผิดพลาดในการสั่งพิมพ์แบบ Direct Serial:", err);
-        alert("ไม่สามารถสั่งพิมพ์โดยตรงได้: " + err.message);
-      } finally {
-        await renderFinalCanvas(false);
       }
     }
   </script>
