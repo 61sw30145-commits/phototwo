@@ -517,10 +517,10 @@
     // Halftone Clustered-Dot Dithering
     // สร้างจุด Dot Screen ที่เปลี่ยนขนาดตามระดับความเข้มสีเทา
     // ==========================================
-    function createDitheredImage(imgElement, scale = 1.0, contrast = 1.2) {
+    function createDitheredImage(imgElement, contrast = 1.2) {
       const canvas = document.createElement('canvas');
-      canvas.width = imgElement.width;
-      canvas.height = imgElement.height;
+      canvas.width = imgElement.width || imgElement.videoWidth || 576;
+      canvas.height = imgElement.height || imgElement.videoHeight || 800;
       const ctx = canvas.getContext('2d');
 
       ctx.fillStyle = '#FFFFFF';
@@ -530,7 +530,7 @@
       const tempCtx = tempCanvas.getContext('2d');
 
       // กำหนดขนาด Grid (ขนาดของจุดสูงสุด)
-      const gridSize = 7; 
+      const gridSize = 6; 
       const cols = Math.ceil(canvas.width / gridSize);
       const rows = Math.ceil(canvas.height / gridSize);
 
@@ -593,8 +593,8 @@
           const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (rawImages[0]) {
-            const ditheredPhoto = createDitheredImage(rawImages[0], 1.0, 1.2);
-            ctx.drawImage(ditheredPhoto, 75, 150, 1050, 1350);
+            // วาดรูปภาพสีแบบ Original ไม่ผ่าน Dithering
+            ctx.drawImage(rawImages[0], 75, 150, 1050, 1350);
           }
 
           if (selectedFrame) {
@@ -618,8 +618,8 @@
 
           rawImages.forEach((img, i) => {
             if (img) {
-              const ditheredPhoto = createDitheredImage(img, 1.0, 1.2);
-              ctx.drawImage(ditheredPhoto, 73.5, topYs[i], 900, 675);
+              // วาดรูปภาพสีแบบ Original ไม่ผ่าน Dithering
+              ctx.drawImage(img, 73.5, topYs[i], 900, 675);
             }
           });
 
@@ -675,17 +675,21 @@
 
     // ==========================================
     // ESC/POS Raster Printer Command Converter (GS v 0)
+    // แปลงภาพ Canvas เป็น Halftone Clustered-Dot Dithering ก่อนสั่งพิมพ์
     // ==========================================
-    function canvasToEscPosRaster(canvas) {
+    function canvasToEscPosRaster(srcCanvas) {
+      // แปลง Canvas เดิมเป็น Halftone Clustered-Dot ก่อนพิมพ์
+      const ditheredCanvas = createDitheredImage(srcCanvas, 1.2);
+
       const targetWidth = 576;
-      const scale = targetWidth / canvas.width;
-      const targetHeight = Math.floor(canvas.height * scale);
+      const scale = targetWidth / ditheredCanvas.width;
+      const targetHeight = Math.floor(ditheredCanvas.height * scale);
 
       const printCanvas = document.createElement('canvas');
       printCanvas.width = targetWidth;
       printCanvas.height = targetHeight;
       const pCtx = printCanvas.getContext('2d');
-      pCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
+      pCtx.drawImage(ditheredCanvas, 0, 0, targetWidth, targetHeight);
 
       const imgData = pCtx.getImageData(0, 0, targetWidth, targetHeight);
       const data = imgData.data;
