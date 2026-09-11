@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Minimal Photo Booth</title>
+  <title>Minimal Photo Booth (2 Shots)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style id="dynamic-print-style">
     /* สไตล์สำหรับการพิมพ์ผ่านเบราว์เซอร์ */
@@ -76,17 +76,13 @@
     <button onclick="goToStep(15)" class="px-8 py-3 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition">กดเพื่อเริ่มถ่ายรูป</button>
   </div>
 
-  <!-- Step 1.5: เลือกจำนวนช็อต -->
+  <!-- Step 1.5: เลือกจำนวนช็อต (ปรับเหลือ 2 ช็อต) -->
   <div id="step-15" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">เลือกจำนวนช็อต</h2>
-    <div class="grid grid-cols-2 gap-4">
-      <button onclick="selectShotCount(1)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
-        <span class="text-3xl font-light group-hover:scale-110 transition">1</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 1 ช็อต (80x130 mm)</span>
-      </button>
-      <button onclick="selectShotCount(3)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group">
-        <span class="text-3xl font-light group-hover:scale-110 transition">3</span>
-        <span class="text-sm font-medium text-stone-600">ถ่าย 3 ช็อต (70x210 mm)</span>
+    <div class="flex justify-center">
+      <button onclick="selectShotCount(2)" class="p-6 bg-white border border-stone-200 rounded-2xl shadow-sm hover:border-stone-800 transition flex flex-col items-center gap-2 group w-64">
+        <span class="text-3xl font-light group-hover:scale-110 transition">2</span>
+        <span class="text-sm font-medium text-stone-600">ถ่าย 2 ช็อต (70x210 mm)</span>
       </button>
     </div>
   </div>
@@ -104,15 +100,11 @@
 
       <!-- กรอบไกด์กำหนดตำแหน่งรูปถ่าย -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-        <div id="guide-box" class="border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300">
-          <!-- มาร์กมุมทั้ง 4 -->
+        <div id="guide-box" class="w-[85%] aspect-[65/50] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300 rounded-md">
           <div class="corner-mark top-left"></div>
           <div class="corner-mark top-right"></div>
           <div class="corner-mark bottom-left"></div>
           <div class="corner-mark bottom-right"></div>
-          
-          <span class="text-xs font-medium text-white bg-black/60 px-3 py-1 rounded-full backdrop-blur-md absolute top-3 shadow-sm border border-white/20">
-          </span>
         </div>
       </div>
 
@@ -174,7 +166,7 @@
     let currentStep = 1;
     let stepHistory = [1];
     let selectedFrame = null;
-    let targetShotCount = 3;
+    let targetShotCount = 2; // ตั้งค่าเริ่มต้นเป็น 2 ช็อต
     let capturedImages = [];
     let frames = [];
     let captureTimer = null;
@@ -189,64 +181,16 @@
         frames = config.frames || [];
       } catch (e) {
         frames = [
-          { id: 1, name: "โปร่งใส (1 รูป)", file: "frame_1shot_1.png", shots: 1 },
-          { id: 2, name: "หนังสือพิมพ์ (1 รูป)", file: "frame_1shot_2.png", shots: 1 },
-          { id: 3, name: "โปร่งใส (3 รูป)", file: "frame1.png", shots: 3 },
-          { id: 4, name: "ใบเสร็จ (3 รูป)", file: "frame2.png", shots: 3 },
-          { id: 5, name: "บัวหลวงใหญ่ (3 รูป)", file: "frame3.png", shots: 3 },
-          { id: 6, name: "โหมดดาร์ก (3 รูป)", file: "frame4.png", shots: 3 }
+          { id: 1, name: "กรอบโปร่งใส (2 รูป)", file: "frame_2shot_1.png", shots: 2 },
+          { id: 2, name: "สไตล์มินิมอล (2 รูป)", file: "frame_2shot_2.png", shots: 2 }
         ];
       }
     }
     loadConfig();
 
-    function updatePagePrintStyle() {
-      const styleEl = document.getElementById('dynamic-print-style');
-      const height = targetShotCount === 1 ? '130mm' : '210mm';
-      const width = targetShotCount === 1 ? '80mm' : '70mm';
-      styleEl.innerHTML = `
-        @media print {
-          @page {
-            size: ${width} ${height};
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-            background: #fff;
-          }
-          body * { 
-            visibility: hidden; 
-          }
-          #print-area, #print-area *, #final-canvas { 
-            visibility: visible !important; 
-          }
-          #print-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: ${width};
-            height: auto;
-            display: block;
-          }
-          #final-canvas {
-            width: 100% !important;
-            height: auto !important;
-            display: block !important;
-            object-fit: contain;
-          }
-          #back-button-container, .bg-white { 
-            display: none !important; 
-          }
-        }
-        #webcam { transform: scaleX(-1); }
-      `;
-    }
-
     function selectShotCount(count) {
       targetShotCount = count;
       capturedImages = new Array(count).fill(null);
-      updatePagePrintStyle();
       goToStep(2);
     }
 
@@ -274,20 +218,13 @@
 
       if (step === 2) renderFrames();
       if (step === 3) {
-        const guideBox = document.getElementById('guide-box');
-        if (targetShotCount === 1) {
-          guideBox.className = "w-[80%] aspect-[70/90] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300 rounded-md";
-        } else {
-          guideBox.className = "w-[85%] aspect-[900/675] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.55)] relative flex items-center justify-center transition-all duration-300 rounded-md";
-        }
-
         if (!capturedImages[0]) {
           startCameraAndCapture();
         } else {
           showRetakeUI();
         }
       }
-      if (step === 4) renderFinalCanvas(false); // แสดงภาพอริจินอลบนหน้าจอ
+      if (step === 4) renderFinalCanvas(false);
     }
 
     function goBack() {
@@ -320,11 +257,9 @@
         return;
       }
 
-      const aspectClass = targetShotCount === 1 ? 'aspect-[80/130]' : 'aspect-[70/210]';
-
       container.innerHTML = filteredFrames.map(f => `
         <div onclick="selectFrame('${f.file}')" class="group border border-stone-200 p-3 rounded-xl cursor-pointer hover:border-stone-800 bg-white shadow-sm hover:shadow-md transition flex flex-col items-center space-y-2">
-          <div class="w-full ${aspectClass} bg-stone-100 rounded-lg overflow-hidden flex items-center justify-center p-1 border border-stone-100 relative">
+          <div class="w-full aspect-[70/210] bg-stone-100 rounded-lg overflow-hidden flex items-center justify-center p-1 border border-stone-100 relative">
             <img src="${f.file}" alt="${f.name}" class="w-full h-full object-contain group-hover:scale-105 transition duration-200 z-10" onerror="this.src='https://via.placeholder.com/150?text=No+Preview'">
           </div>
           <p class="text-sm font-medium text-stone-700 group-hover:text-stone-900">${f.name}</p>
@@ -398,57 +333,31 @@
       const vWidth = video.videoWidth;
       const vHeight = video.videoHeight;
 
-      if (targetShotCount === 1) {
-        canvas.width = 1050;
-        canvas.height = 1350;
+      // ปรับสัดส่วนการ Crop ให้พอดีกับกรอบ 65x50 (13:10)
+      canvas.width = 975;
+      canvas.height = 750;
 
-        const targetRatio = 1050 / 1350;
-        const videoRatio = vWidth / vHeight;
+      const targetRatio = 975 / 750;
+      const videoRatio = vWidth / vHeight;
 
-        let cropWidth, cropHeight, startX, startY;
+      let cropWidth, cropHeight, startX, startY;
 
-        if (videoRatio > targetRatio) {
-          cropHeight = vHeight;
-          cropWidth = vHeight * targetRatio;
-          startX = (vWidth - cropWidth) / 2;
-          startY = 0;
-        } else {
-          cropWidth = vWidth;
-          cropHeight = vWidth / targetRatio;
-          startX = 0;
-          startY = (vHeight - cropHeight) / 2;
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+      if (videoRatio > targetRatio) {
+        cropHeight = vHeight;
+        cropWidth = vHeight * targetRatio;
+        startX = (vWidth - cropWidth) / 2;
+        startY = 0;
       } else {
-        canvas.width = 900;
-        canvas.height = 675;
-
-        const targetRatio = 900 / 675;
-        const videoRatio = vWidth / vHeight;
-
-        let cropWidth, cropHeight, startX, startY;
-
-        if (videoRatio > targetRatio) {
-          cropHeight = vHeight;
-          cropWidth = vHeight * targetRatio;
-          startX = (vWidth - cropWidth) / 2;
-          startY = 0;
-        } else {
-          cropWidth = vWidth;
-          cropHeight = vWidth / targetRatio;
-          startX = 0;
-          startY = (vHeight - cropHeight) / 2;
-        }
-
-        const ctx = canvas.getContext('2d');
-        ctx.translate(canvas.width, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+        cropWidth = vWidth;
+        cropHeight = vWidth / targetRatio;
+        startX = 0;
+        startY = (vHeight - cropHeight) / 2;
       }
+
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
 
       capturedImages[index] = canvas.toDataURL('image/png');
     }
@@ -568,59 +477,43 @@
       return canvas;
     }
 
-    // วาด Canvas โดยเพิ่ม parameter isForPrint เพื่อเลือกว่าจะใช้ภาพ Original หรือ Dithered
+    // วาด Canvas หลักตามขนาด 70x210 mm
     async function renderFinalCanvas(isForPrint = false) {
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
-      if (targetShotCount === 1) {
-        canvas.width = 1200;
-        canvas.height = 1950;
+      // 70mm x 210mm (อัตราส่วน 1mm = 15px)
+      canvas.width = 1050; 
+      canvas.height = 3150;
 
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        try {
-          const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
-          
-          if (rawImages[0]) {
-            const photoToDraw = isForPrint ? createDitheredImage(rawImages[0], 1.0, 1.2) : rawImages[0];
-            ctx.drawImage(photoToDraw, 75, 150, 1050, 1350);
+      try {
+        const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
+        
+        // ระยะขอบและตำแหน่งในหน่วย Pixel
+        const frameWidth = 975;   // 65mm
+        const frameHeight = 750;  // 50mm
+        const marginX = 37.5;     // 2.5mm
+        
+        // ช็อตที่ 1: ห่างขอบบน 65mm (975px)
+        // ช็อตที่ 2: ห่างจากช็อตแรก 5.1mm (76.5px) -> Y = 975 + 750 + 76.5 = 1801.5px
+        const topYs = [975, 1801.5];
+
+        rawImages.forEach((img, i) => {
+          if (img) {
+            const photoToDraw = isForPrint ? createDitheredImage(img, 1.0, 1.2) : img;
+            ctx.drawImage(photoToDraw, marginX, topYs[i], frameWidth, frameHeight);
           }
+        });
 
-          if (selectedFrame) {
-            const frameImg = await loadImage(selectedFrame);
-            if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-          }
-        } catch (err) {
-          console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 1 ช็อต", err);
+        if (selectedFrame) {
+          const frameImg = await loadImage(selectedFrame);
+          if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
         }
-
-      } else {
-        canvas.width = 1050;
-        canvas.height = 3150;
-
-        ctx.fillStyle = "#FFFFFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        try {
-          const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
-          const topYs = [375, 1125, 1875];
-
-          rawImages.forEach((img, i) => {
-            if (img) {
-              const photoToDraw = isForPrint ? createDitheredImage(img, 1.0, 1.2) : img;
-              ctx.drawImage(photoToDraw, 73.5, topYs[i], 900, 675);
-            }
-          });
-
-          if (selectedFrame) {
-            const frameImg = await loadImage(selectedFrame);
-            if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
-          }
-        } catch (err) {
-          console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 3 ช็อต", err);
-        }
+      } catch (err) {
+        console.error("เกิดข้อผิดพลาดในการสร้าง Canvas สำหรับ 2 ช็อต", err);
       }
     }
 
@@ -631,7 +524,6 @@
       input.value = val;
     }
 
-    // แปลงภาพเป็น Halftone ชั่วคราวก่อนเปิดหน้าสั่งพิมพ์ระบบ แล้วแปลงกลับเป็นภาพปกติ
     async function triggerPrint() {
       await renderFinalCanvas(true);
       const copies = parseInt(document.getElementById('print-copies').value) || 1;
@@ -727,7 +619,6 @@
       return commandList;
     }
 
-    // แปลงภาพเป็น Halftone ชั่วคราวก่อนสร้างข้อมูล Raster Direct Serial
     async function printDirectSerial() {
       if (!('serial' in navigator)) {
         alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge บน Windows/macOS/Android");
