@@ -287,7 +287,7 @@
           showRetakeUI();
         }
       }
-      if (step === 4) renderFinalCanvas();
+      if (step === 4) renderFinalCanvas(false); // แสดงภาพอริจินอลบนหน้าจอ
     }
 
     function goBack() {
@@ -513,14 +513,11 @@
       });
     }
 
-    // ==========================================
     // Halftone Clustered-Dot Dithering
-    // สร้างจุด Dot Screen ที่เปลี่ยนขนาดตามระดับความเข้มสีเทา
-    // ==========================================
-    function createDitheredImage(imgElement, contrast = 1.2) {
+    function createDitheredImage(imgElement, scale = 1.0, contrast = 1.2) {
       const canvas = document.createElement('canvas');
-      canvas.width = imgElement.width || imgElement.videoWidth || 576;
-      canvas.height = imgElement.height || imgElement.videoHeight || 800;
+      canvas.width = imgElement.width;
+      canvas.height = imgElement.height;
       const ctx = canvas.getContext('2d');
 
       ctx.fillStyle = '#FFFFFF';
@@ -529,8 +526,7 @@
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
-      // กำหนดขนาด Grid (ขนาดของจุดสูงสุด)
-      const gridSize = 6; 
+      const gridSize = 7; 
       const cols = Math.ceil(canvas.width / gridSize);
       const rows = Math.ceil(canvas.height / gridSize);
 
@@ -550,21 +546,15 @@
           const g = data[idx + 1];
           const b = data[idx + 2];
 
-          // คำนวณค่าความสว่าง Grayscale (0 - 255)
           let brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-
-          // ปรับ Contrast ให้มิติภาพชัดเจน
           brightness = ((brightness - 128) * contrast) + 128;
           brightness = Math.max(0, Math.min(255, brightness));
 
-          // แปลงความสว่างเป็นรัศมีของจุด (สีเข้ม = รัศมีใหญ่, สีสว่าง = รัศมีเล็ก)
           const darkness = 1 - (brightness / 255);
 
           if (darkness > 0.05) { 
             const centerX = x * gridSize + gridSize / 2;
             const centerY = y * gridSize + gridSize / 2;
-            
-            // รัศมีสูงสุดครอบคลุมพื้นที่ Grid เพื่อให้จุดในพื้นที่ดำกลืนเชื่อมกัน
             const maxRadius = (gridSize / 2) * 1.35; 
             const radius = darkness * maxRadius;
 
@@ -578,7 +568,8 @@
       return canvas;
     }
 
-    async function renderFinalCanvas() {
+    // วาด Canvas โดยเพิ่ม parameter isForPrint เพื่อเลือกว่าจะใช้ภาพ Original หรือ Dithered
+    async function renderFinalCanvas(isForPrint = false) {
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
 
@@ -593,8 +584,8 @@
           const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
           
           if (rawImages[0]) {
-            // วาดรูปภาพสีแบบ Original ไม่ผ่าน Dithering
-            ctx.drawImage(rawImages[0], 75, 150, 1050, 1350);
+            const photoToDraw = isForPrint ? createDitheredImage(rawImages[0], 1.0, 1.2) : rawImages[0];
+            ctx.drawImage(photoToDraw, 75, 150, 1050, 1350);
           }
 
           if (selectedFrame) {
@@ -618,8 +609,8 @@
 
           rawImages.forEach((img, i) => {
             if (img) {
-              // วาดรูปภาพสีแบบ Original ไม่ผ่าน Dithering
-              ctx.drawImage(img, 73.5, topYs[i], 900, 675);
+              const photoToDraw = isForPrint ? createDitheredImage(img, 1.0, 1.2) : img;
+              ctx.drawImage(photoToDraw, 73.5, topYs[i], 900, 675);
             }
           });
 
@@ -640,11 +631,14 @@
       input.value = val;
     }
 
-    function triggerPrint() {
+    // แปลงภาพเป็น Halftone ชั่วคราวก่อนเปิดหน้าสั่งพิมพ์ระบบ แล้วแปลงกลับเป็นภาพปกติ
+    async function triggerPrint() {
+      await renderFinalCanvas(true);
       const copies = parseInt(document.getElementById('print-copies').value) || 1;
       for (let i = 0; i < copies; i++) {
         window.print();
       }
+      await renderFinalCanvas(false);
     }
 
     async function downloadImage() {
@@ -673,23 +667,17 @@
       }
     }
 
-    // ==========================================
     // ESC/POS Raster Printer Command Converter (GS v 0)
-    // แปลงภาพ Canvas เป็น Halftone Clustered-Dot Dithering ก่อนสั่งพิมพ์
-    // ==========================================
-    function canvasToEscPosRaster(srcCanvas) {
-      // แปลง Canvas เดิมเป็น Halftone Clustered-Dot ก่อนพิมพ์
-      const ditheredCanvas = createDitheredImage(srcCanvas, 1.2);
-
+    function canvasToEscPosRaster(canvas) {
       const targetWidth = 576;
-      const scale = targetWidth / ditheredCanvas.width;
-      const targetHeight = Math.floor(ditheredCanvas.height * scale);
+      const scale = targetWidth / canvas.width;
+      const targetHeight = Math.floor(canvas.height * scale);
 
       const printCanvas = document.createElement('canvas');
       printCanvas.width = targetWidth;
       printCanvas.height = targetHeight;
       const pCtx = printCanvas.getContext('2d');
-      pCtx.drawImage(ditheredCanvas, 0, 0, targetWidth, targetHeight);
+      pCtx.drawImage(canvas, 0, 0, targetWidth, targetHeight);
 
       const imgData = pCtx.getImageData(0, 0, targetWidth, targetHeight);
       const data = imgData.data;
@@ -697,12 +685,9 @@
       const widthBytes = Math.ceil(targetWidth / 8);
       const commandList = [];
 
-      // Initialize Printer (ESC @)
       commandList.push(new Uint8Array([0x1B, 0x40]));
-      // Line Spacing = 0 (ESC 3 0)
       commandList.push(new Uint8Array([0x1B, 0x33, 0x00]));
 
-      // GS v 0 Header
       const xL = widthBytes & 0xFF;
       const xH = (widthBytes >> 8) & 0xFF;
       const yL = targetHeight & 0xFF;
@@ -711,7 +696,6 @@
       const header = new Uint8Array([0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
       commandList.push(header);
 
-      // Convert RGBA to Bitmap Bytes
       const rasterData = new Uint8Array(widthBytes * targetHeight);
       let bytePos = 0;
 
@@ -737,23 +721,25 @@
       }
 
       commandList.push(rasterData);
-
-      // Feed paper & Cut (ESC d 4 + GS V 0)
       commandList.push(new Uint8Array([0x1B, 0x64, 0x04]));
       commandList.push(new Uint8Array([0x1D, 0x56, 0x00]));
 
       return commandList;
     }
 
+    // แปลงภาพเป็น Halftone ชั่วคราวก่อนสร้างข้อมูล Raster Direct Serial
     async function printDirectSerial() {
       if (!('serial' in navigator)) {
         alert("เบราว์เซอร์นี้ไม่รองรับ Web Serial API กรุณาใช้ Chrome หรือ Edge บน Windows/macOS/Android");
         return;
       }
 
+      await renderFinalCanvas(true);
+
       const canvas = document.getElementById('final-canvas');
       if (!canvas) {
         alert("ไม่พบ Canvas สำหรับสั่งพิมพ์");
+        await renderFinalCanvas(false);
         return;
       }
 
@@ -781,6 +767,8 @@
       } catch (err) {
         console.error("เกิดข้อผิดพลาดในการสั่งพิมพ์แบบ Direct Serial:", err);
         alert("ไม่สามารถสั่งพิมพ์โดยตรงได้: " + err.message);
+      } finally {
+        await renderFinalCanvas(false);
       }
     }
   </script>
