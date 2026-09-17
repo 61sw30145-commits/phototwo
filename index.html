@@ -116,7 +116,7 @@
       <img id="shot-preview-overlay" class="absolute inset-0 w-full h-full object-contain hidden z-20" />
       <div id="countdown" class="absolute inset-0 flex items-center justify-center text-6xl font-bold text-white bg-black/40 hidden z-30">3</div>
     </div>
-      
+
     <div id="retake-controls" class="hidden space-y-3">
       <p class="text-sm font-medium text-stone-700">กดที่รูปเพื่อถ่ายใหม่เฉพาะช็อตนั้น:</p>
       <div id="shots-preview" class="flex justify-center gap-2"></div>
@@ -127,7 +127,7 @@
   <!-- Step 4: สั่งพิมพ์ -->
   <div id="step-4" class="hidden text-center space-y-6 w-full max-w-md">
     <h2 class="text-2xl font-light">พิมพ์รูปภาพ / บันทึกไฟล์</h2>
-      
+
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
       <!-- แท็ก <img> พิเศษเพื่อช่วยการพิมพ์บน Safari iOS ให้เสถียร 100% -->
@@ -275,7 +275,7 @@
         document.getElementById('webcam').srcObject = mediaStream;
         document.getElementById('retake-controls').classList.add('hidden');
         document.getElementById('camera-guide').classList.remove('hidden');
-        
+
         setTimeout(() => {
           capturedImages = new Array(targetShotCount).fill(null);
           isCapturing = true;
@@ -306,7 +306,7 @@
         } else {
           clearInterval(captureTimer);
           cdEl.classList.add('hidden');
-          
+
           takePhoto(index);
 
           const previewImg = document.getElementById('shot-preview-overlay');
@@ -323,7 +323,7 @@
     function takePhoto(index) {
       const video = document.getElementById('webcam');
       const canvas = document.createElement('canvas');
-      
+
       const vWidth = video.videoWidth;
       const vHeight = video.videoHeight;
 
@@ -360,7 +360,7 @@
       document.getElementById('shot-preview-overlay').classList.add('hidden');
       document.getElementById('retake-controls').classList.add('hidden');
       document.getElementById('camera-guide').classList.remove('hidden');
-      
+
       let count = 3;
       const cdEl = document.getElementById('countdown');
       cdEl.classList.remove('hidden');
@@ -374,7 +374,7 @@
           clearInterval(captureTimer);
           cdEl.classList.add('hidden');
           takePhoto(index);
-          
+
           const previewImg = document.getElementById('shot-preview-overlay');
           previewImg.src = capturedImages[index];
           previewImg.classList.remove('hidden');
@@ -415,7 +415,7 @@
       });
     }
 
-    // Halftone Clustered-Dot Dithering สำหรับสลิปความร้อน Xprinter
+    // Halftone Clustered-Dot Dithering สำหรับสลิปความร้อน Xprinter (ปรับจุดเล็กลง ~15%)
     function createDitheredImage(imgElement, scale = 1.0, contrast = 1.2) {
       const canvas = document.createElement('canvas');
       canvas.width = imgElement.width;
@@ -428,7 +428,8 @@
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
-      const gridSize = 7; 
+      // ปรับลด gridSize จาก 7 เหลือ 6 เพื่อให้จุดถี่ขึ้น
+      const gridSize = 6; 
       const cols = Math.ceil(canvas.width / gridSize);
       const rows = Math.ceil(canvas.height / gridSize);
 
@@ -457,7 +458,9 @@
           if (darkness > 0.05) { 
             const centerX = x * gridSize + gridSize / 2;
             const centerY = y * gridSize + gridSize / 2;
-            const maxRadius = (gridSize / 2) * 1.35; 
+            
+            // ปรับลดรัศมีสูงสุดจาก 1.35 เหลือ 1.15 เพื่อลดขนาดเม็ดสกรีนลง ~15%
+            const maxRadius = (gridSize / 2) * 1.15; 
             const radius = darkness * maxRadius;
 
             ctx.beginPath();
@@ -483,11 +486,11 @@
 
       try {
         const rawImages = await Promise.all(capturedImages.map(imgSrc => loadImage(imgSrc)));
-        
+
         const frameWidth = 975;   // 65mm
         const frameHeight = 750;  // 50mm
         const marginX = 37.5;     // 2.5mm
-        
+
         const topYs = [975, 1801.5];
 
         rawImages.forEach((img, i) => {
@@ -515,11 +518,11 @@
     async function triggerPrint() {
       // 1. Render รูปแบบ Dithering สำหรับการพิมพ์
       await renderFinalCanvas(true);
-      
+
       // 2. ให้เบราว์เซอร์เตรียมภาพสักครู่แล้วเรียกหน้าต่าง พิมพ์ (AirPrint)
       setTimeout(() => {
         window.print();
-        
+
         // 3. หลังสั่งพิมพ์ คืนค่า Canvas ให้แสดงผลปกติบนหน้าจอ
         setTimeout(() => {
           renderFinalCanvas(false);
