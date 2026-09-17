@@ -415,8 +415,8 @@
       });
     }
 
-    // Halftone Clustered-Dot Dithering สำหรับสลิปความร้อน Xprinter (ปรับจุดเล็กลง ~15%)
-    function createDitheredImage(imgElement, scale = 1.0, contrast = 1.2) {
+    // Halftone Clustered-Dot Dithering ปรับแสงเงาเข้มลึกขึ้น สำหรับจุดขนาดเล็ก
+    function createDitheredImage(imgElement, scale = 1.0, contrast = 1.35) {
       const canvas = document.createElement('canvas');
       canvas.width = imgElement.width;
       canvas.height = imgElement.height;
@@ -428,7 +428,7 @@
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
-      // ปรับลด gridSize จาก 7 เหลือ 6 เพื่อให้จุดถี่ขึ้น
+      // ปรับลด gridSize เหลือ 6 เพื่อให้เม็ด Halftone เล็กลงและละเอียดขึ้น
       const gridSize = 6; 
       const cols = Math.ceil(canvas.width / gridSize);
       const rows = Math.ceil(canvas.height / gridSize);
@@ -449,18 +449,26 @@
           const g = data[idx + 1];
           const b = data[idx + 2];
 
+          // 1. คำนวณความสว่างพื้นฐาน
           let brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          // 2. ปรับ Contrast ให้ตัดกันชัดเจน
           brightness = ((brightness - 128) * contrast) + 128;
           brightness = Math.max(0, Math.min(255, brightness));
 
-          const darkness = 1 - (brightness / 255);
+          // 3. เพิ่มมิติแสงเงา (Gamma Adjustment 1.3): ดึงเงาให้ลึกและเข้มขึ้น ชดเชยจุดที่เล็กลง
+          let normBrightness = brightness / 255;
+          normBrightness = Math.pow(normBrightness, 1.3);
+          
+          const darkness = 1 - normBrightness;
 
-          if (darkness > 0.05) { 
+          // 4. วาดจุด Halftone
+          if (darkness > 0.04) { 
             const centerX = x * gridSize + gridSize / 2;
             const centerY = y * gridSize + gridSize / 2;
             
-            // ปรับลดรัศมีสูงสุดจาก 1.35 เหลือ 1.15 เพื่อลดขนาดเม็ดสกรีนลง ~15%
-            const maxRadius = (gridSize / 2) * 1.15; 
+            // ปรับรัศมีสูงสุดเพื่อให้เงามืดดำสนิท
+            const maxRadius = (gridSize / 2) * 1.22; 
             const radius = darkness * maxRadius;
 
             ctx.beginPath();
@@ -495,7 +503,7 @@
 
         rawImages.forEach((img, i) => {
           if (img) {
-            const photoToDraw = isForPrint ? createDitheredImage(img, 1.0, 1.2) : img;
+            const photoToDraw = isForPrint ? createDitheredImage(img, 1.0, 1.35) : img;
             ctx.drawImage(photoToDraw, marginX, topYs[i], frameWidth, frameHeight);
           }
         });
