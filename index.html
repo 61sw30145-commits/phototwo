@@ -19,11 +19,9 @@
         padding: 0 !important;
         background: #fff !important;
       }
-      /* ซ่อนองค์ประกอบหน้าจอทั้งหมด */
       body * { 
         visibility: hidden !important; 
       }
-      /* แสดงเฉพาะพื้นที่รูปที่จะพิมพ์ */
       #print-area, #print-area *, #print-image-tag { 
         visibility: visible !important; 
       }
@@ -66,7 +64,7 @@
 <body class="bg-stone-50 text-stone-800 font-sans min-h-screen flex flex-col items-center justify-center p-4 relative">
 
   <!-- ปุ่มย้อนกลับ -->
-  <div id="back-button-container" class="absolute top-6 left-6 hidden">
+  <div id="back-button-container" class="absolute top-6 left-6 hidden z-50">
     <button onclick="goBack()" class="flex items-center gap-2 px-4 py-2 bg-white border border-stone-200 rounded-full shadow-sm hover:border-stone-800 transition text-sm font-medium text-stone-700">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -100,8 +98,8 @@
 
   <!-- Step 3: กล้อง & กำหนดพื้นที่รูปภาพ -->
   <div id="step-3" class="hidden text-center space-y-4 w-full max-w-md">
-    <div class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center">
-      <video id="webcam" autoplay playsinline class="w-full h-auto object-contain"></video>
+    <div id="camera-container" class="relative w-full bg-black rounded-lg overflow-hidden shadow-sm flex items-center justify-center aspect-[4/3]">
+      <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
 
       <!-- กรอบไกด์กำหนดตำแหน่งรูปถ่าย -->
       <div id="camera-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
@@ -130,11 +128,9 @@
 
     <div id="print-area" class="flex justify-center">
       <canvas id="final-canvas" class="max-w-full rounded shadow-md border border-stone-200"></canvas>
-      <!-- แท็ก <img> พิเศษเพื่อช่วยการพิมพ์บน Safari iOS ให้เสถียร 100% -->
       <img id="print-image-tag" class="hidden" alt="Print Render">
     </div>
 
-    <!-- แผงตั้งค่าการพิมพ์ -->
     <div class="bg-white p-4 rounded-xl border border-stone-200 space-y-3">
       <div class="flex flex-col gap-2 pt-1">
         <button onclick="triggerPrint()" class="w-full py-3 bg-stone-800 text-white rounded-xl hover:bg-stone-700 transition font-medium flex items-center justify-center gap-2 text-base shadow-sm">
@@ -186,18 +182,30 @@
     }
     loadConfig();
 
+    // เปิดการใช้งานกล้องค้างไว้ล่วงหน้า
+    async function initCamera() {
+      if (!mediaStream) {
+        try {
+          mediaStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" }, 
+            audio: false 
+          });
+          document.getElementById('webcam').srcObject = mediaStream;
+        } catch (err) {
+          alert("ไม่สามารถเข้าถึงกล้องได้ กรุณ่อนุญาตสิทธิ์การใช้กล้อง");
+        }
+      }
+    }
+
     function selectShotCount(count) {
       targetShotCount = count;
       capturedImages = new Array(count).fill(null);
+      initCamera(); // ขอสิทธิ์ใช้กล้องตั้งแต่กดเลือกช็อต
       goToStep(2);
     }
 
     function goToStep(step, isBack = false) {
       if (isCapturing) stopCapture();
-
-      if (currentStep === 3 && step !== 3) {
-        stopCamera();
-      }
 
       document.querySelectorAll('[id^="step-"]').forEach(el => el.classList.add('hidden'));
       document.getElementById(`step-${step}`).classList.remove('hidden');
@@ -239,13 +247,6 @@
       document.getElementById('countdown').classList.add('hidden');
     }
 
-    function stopCamera() {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop());
-        mediaStream = null;
-      }
-    }
-
     function renderFrames() {
       const container = document.getElementById('frame-list');
       const filteredFrames = frames.filter(f => f.shots === targetShotCount);
@@ -271,23 +272,15 @@
     }
 
     async function startCameraAndCapture() {
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { width: { ideal: 1920 }, height: { ideal: 1080 }, facingMode: "user" }, 
-          audio: false 
-        });
-        document.getElementById('webcam').srcObject = mediaStream;
-        document.getElementById('retake-controls').classList.add('hidden');
-        document.getElementById('camera-guide').classList.remove('hidden');
+      await initCamera();
+      document.getElementById('retake-controls').classList.add('hidden');
+      document.getElementById('camera-guide').classList.remove('hidden');
 
-        setTimeout(() => {
-          capturedImages = new Array(targetShotCount).fill(null);
-          isCapturing = true;
-          captureNext(0);
-        }, 1000);
-      } catch (err) {
-        alert("ไม่สามารถเข้าถึงกล้องได้ กรุณ่อนุญาตสิทธิ์การใช้กล้อง");
-      }
+      setTimeout(() => {
+        capturedImages = new Array(targetShotCount).fill(null);
+        isCapturing = true;
+        captureNext(0);
+      }, 500);
     }
 
     function captureNext(index) {
@@ -319,42 +312,42 @@
 
           setTimeout(() => {
             if (isCapturing) captureNext(index + 1);
-          }, 2000);
+          }, 1500);
         }
       }, 1000);
     }
 
+    // ครอปรูปตามพิกัดของกรอบ guide-box ในหน้าจอจริง
     function takePhoto(index) {
       const video = document.getElementById('webcam');
+      const container = document.getElementById('camera-container');
+      const guideBox = document.getElementById('guide-box');
       const canvas = document.createElement('canvas');
-
-      const vWidth = video.videoWidth;
-      const vHeight = video.videoHeight;
 
       canvas.width = 975;
       canvas.height = 750;
 
-      const targetRatio = 975 / 750;
-      const videoRatio = vWidth / vHeight;
+      const containerRect = container.getBoundingClientRect();
+      const guideRect = guideBox.getBoundingClientRect();
 
-      let cropWidth, cropHeight, startX, startY;
+      // คำนวณสัดส่วนของ guide box บนคอนเทนเนอร์กล้อง
+      const scaleX = video.videoWidth / containerRect.width;
+      const scaleY = video.videoHeight / containerRect.height;
 
-      if (videoRatio > targetRatio) {
-        cropHeight = vHeight;
-        cropWidth = vHeight * targetRatio;
-        startX = (vWidth - cropWidth) / 2;
-        startY = 0;
-      } else {
-        cropWidth = vWidth;
-        cropHeight = vWidth / targetRatio;
-        startX = 0;
-        startY = (vHeight - cropHeight) / 2;
-      }
+      const cropX = (guideRect.left - containerRect.left) * scaleX;
+      const cropY = (guideRect.top - containerRect.top) * scaleY;
+      const cropW = guideRect.width * scaleX;
+      const cropH = guideRect.height * scaleY;
 
       const ctx = canvas.getContext('2d');
+      // พลิกกระจกแนวนอนเพื่อความสมจริง
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
-      ctx.drawImage(video, startX, startY, cropWidth, cropHeight, 0, 0, canvas.width, canvas.height);
+
+      // คำนวณตำแหน่งกลับด้านเนื่องจากสลับพิกัด X จากการกระจก
+      const mirrorCropX = video.videoWidth - cropX - cropW;
+
+      ctx.drawImage(video, mirrorCropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
 
       capturedImages[index] = canvas.toDataURL('image/png');
     }
@@ -386,7 +379,7 @@
           setTimeout(() => {
             document.getElementById('shot-preview-overlay').classList.add('hidden');
             showRetakeUI();
-          }, 2000);
+          }, 1500);
         }
       }, 1000);
     }
@@ -419,7 +412,6 @@
       });
     }
 
-    // Halftone Clustered-Dot Dithering ปรับแสงเงาเข้มลึกขึ้น สำหรับจุดขนาดเล็ก
     function createDitheredImage(imgElement, scale = 1.0, contrast = 1.35) {
       const canvas = document.createElement('canvas');
       canvas.width = imgElement.width;
@@ -432,7 +424,6 @@
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
-      // ปรับลด gridSize เหลือ 6 เพื่อให้เม็ด Halftone เล็กลงและละเอียดขึ้น
       const gridSize = 6; 
       const cols = Math.ceil(canvas.width / gridSize);
       const rows = Math.ceil(canvas.height / gridSize);
@@ -453,25 +444,19 @@
           const g = data[idx + 1];
           const b = data[idx + 2];
 
-          // 1. คำนวณความสว่างพื้นฐาน
           let brightness = 0.299 * r + 0.587 * g + 0.114 * b;
-
-          // 2. ปรับ Contrast ให้ตัดกันชัดเจน
           brightness = ((brightness - 128) * contrast) + 128;
           brightness = Math.max(0, Math.min(255, brightness));
 
-          // 3. เพิ่มมิติแสงเงา (Gamma Adjustment 1.3): ดึงเงาให้ลึกและเข้มขึ้น ชดเชยจุดที่เล็กลง
           let normBrightness = brightness / 255;
           normBrightness = Math.pow(normBrightness, 1.3);
           
           const darkness = 1 - normBrightness;
 
-          // 4. วาดจุด Halftone
           if (darkness > 0.04) { 
             const centerX = x * gridSize + gridSize / 2;
             const centerY = y * gridSize + gridSize / 2;
             
-            // ปรับรัศมีสูงสุดเพื่อให้เงามืดดำสนิท
             const maxRadius = (gridSize / 2) * 1.22; 
             const radius = darkness * maxRadius;
 
@@ -485,7 +470,6 @@
       return canvas;
     }
 
-    // วาด Canvas หลักตามขนาด 70x210 mm
     async function renderFinalCanvas(isForPrint = false) {
       const canvas = document.getElementById('final-canvas');
       const ctx = canvas.getContext('2d');
@@ -517,7 +501,6 @@
           if (frameImg) ctx.drawImage(frameImg, 0, 0, canvas.width, canvas.height);
         }
 
-        // แปลง Canvas ไปยังแท็ก <img> เพื่อรองรับการพิมพ์บน Safari iOS
         if (isForPrint) {
           const printImgTag = document.getElementById('print-image-tag');
           printImgTag.src = canvas.toDataURL('image/png');
@@ -528,14 +511,11 @@
     }
 
     async function triggerPrint() {
-      // 1. Render รูปแบบ Dithering สำหรับการพิมพ์
       await renderFinalCanvas(true);
 
-      // 2. ให้เบราว์เซอร์เตรียมภาพสักครู่แล้วเรียกหน้าต่าง พิมพ์ (AirPrint)
       setTimeout(() => {
         window.print();
 
-        // 3. หลังสั่งพิมพ์ คืนค่า Canvas ให้แสดงผลปกติบนหน้าจอ
         setTimeout(() => {
           renderFinalCanvas(false);
         }, 1000);
